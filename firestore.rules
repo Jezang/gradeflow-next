@@ -168,7 +168,8 @@ service cloud.firestore {
      && request.resource.data.keys().hasOnly(['uid','bucket'])
      && request.resource.data.uid == uid && request.resource.data.bucket is int
      && slot == string(request.resource.data.bucket)
-     && request.resource.data.bucket == int(request.time.toMillis()/30000);
+     && request.resource.data.bucket * 30000 <= request.time.toMillis()
+     && request.time.toMillis() < (request.resource.data.bucket + 1) * 30000;
    allow read, update, delete: if false;
   }
   match /{kind}/{id} {
