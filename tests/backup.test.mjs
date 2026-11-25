@@ -1,0 +1,7 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {inspectBackup,allowedPath} from '../lib/backup.ts';
+const payload=rows=>({format:'gradeflow-firestore-v1',project:'gradeflow-next',rows});
+test('allow only known paths and reject duplicates',()=>{assert.equal(allowedPath('teachingAssignments/C/work/W/submissions/S/history/H'),true);assert.equal(allowedPath('legacyArchives/C/assignments/A/students/S'),true);assert.equal(allowedPath('secrets/S'),false);const row={path:'students/S',data:{name:'Example'}};assert.throws(()=>inspectBackup(payload([row,row])));assert.throws(()=>inspectBackup(payload([{path:'secrets/S',data:{}}])));});
+test('detect missing links and invalid scores',()=>{const rows=[{path:'teachingAssignments/C',data:{teacherUid:'T',roomId:'R',subjectId:'ENG',termId:'1'}},{path:'teachingAssignments/C/work/W',data:{maxScore:10}},{path:'teachingAssignments/C/work/W/submissions/S',data:{studentId:'S',score:11,submitted:true}}];assert.ok(inspectBackup(payload(rows)).issues.length>=6);});
+test('valid references and zero score',()=>{const rows=['profiles/T','rooms/R','subjects/ENG','terms/1','students/S'].map(path=>({path,data:{}}));rows.push({path:'teachingAssignments/C',data:{teacherUid:'T',roomId:'R',subjectId:'ENG',termId:'1'}},{path:'teachingAssignments/C/roster/S',data:{}},{path:'teachingAssignments/C/work/W',data:{maxScore:10}},{path:'teachingAssignments/C/work/W/submissions/S',data:{studentId:'S',score:0,submitted:true}});assert.deepEqual(inspectBackup(payload(rows)).issues,[]);});
