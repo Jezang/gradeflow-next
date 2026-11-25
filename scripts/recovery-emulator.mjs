@@ -31,7 +31,8 @@ export async function rehearse(raw){
  const projectId='demo-gf-recovery-'+randomUUID().slice(0,8);
  const env=await initializeTestEnvironment({projectId,firestore:{host:match[1],port:Number(match[2]),rules:"rules_version = '2'; service cloud.firestore { match /databases/{database}/documents { match /{path=**} { allow read, write: if false; } } }"}});
  try{
-  return await env.withSecurityRulesDisabled(async context=>{
+  let verifiedResult;
+  await env.withSecurityRulesDisabled(async context=>{
    const db=context.firestore();
    for(const row of prepared){
     const ref=doc(db,row.path);
@@ -41,8 +42,10 @@ export async function rehearse(raw){
    for(const row of prepared){const snap=await getDocFromServer(doc(db,row.path));if(snap.exists())restored.push({path:row.path,data:encode(snap.data())})}
    const report=compareBackup(rows,restored);
    if(report.equal!==rows.length||report.missing.length||report.changed.length||report.extra.length)throw Error('Recovery verification mismatch');
-   return {projectId,verified:report.equal,total:rows.length};
+   verifiedResult={projectId,verified:report.equal,total:rows.length};
   });
+  if(!verifiedResult)throw Error('Recovery verification did not complete');
+  return verifiedResult;
  }finally{await env.cleanup()}
 }
 if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){
