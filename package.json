@@ -1,6 +1,6 @@
 {
   "name": "gradeflow-next",
-  "version": "0.9.7-1",
+  "version": "0.9.8",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -12,7 +12,9 @@
     "test:reports": "node --experimental-strip-types --disable-warning=ExperimentalWarning --test tests/reports.test.mjs",
     "test:migration": "node --experimental-strip-types --disable-warning=ExperimentalWarning --test tests/migration.test.mjs",
     "test:backup": "node --experimental-strip-types --disable-warning=ExperimentalWarning --test tests/backup.test.mjs",
-    "test:line": "node --experimental-strip-types --disable-warning=ExperimentalWarning --test tests/line.test.mjs"
+    "test:line": "node --experimental-strip-types --disable-warning=ExperimentalWarning --test tests/line.test.mjs",
+    "test:recovery": "node --experimental-strip-types --disable-warning=ExperimentalWarning --test tests/recovery.test.mjs",
+    "rehearse:recovery": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/recovery-emulator.mjs"
   },
   "dependencies": {
     "next": "^15.5.0",
