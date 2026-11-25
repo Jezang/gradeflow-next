@@ -20,7 +20,7 @@ export async function POST(req:Request){
   const body=JSON.parse(raw);
   const stored=key?openLine(key,uid,jar.get(cookieName)?.value||''):null;
   if(body.action==='status')return NextResponse.json({saved:!!stored,to:stored?.to||'',available:!!key});
-  if(body.action==='clear'){jar.delete(cookieName);return NextResponse.json({ok:true})}
+  if(body.action==='clear'){jar.set(cookieName,'',{httpOnly:true,secure:process.env.NODE_ENV==='production',sameSite:'strict',path:'/api/line/push',maxAge:0});return NextResponse.json({ok:true})}
   if(body.action==='save'){
    if(!key)return NextResponse.json({error:'ยังไม่ได้ตั้งค่าคีย์บน Vercel'},{status:503});
    if(!validCredentials(body.token,body.to))return NextResponse.json({error:'ตรวจสอบ Token และ LINE ID'},{status:400});
