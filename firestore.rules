@@ -102,6 +102,61 @@ service cloud.firestore {
     allow delete: if false;
    }
   }
+
+  // Historical snapshots remain separate from live grading, owner only.
+  match /legacyArchives/{cid}/assignments/{aid} {
+   allow read: if owner();
+   allow create: if owner() && openCourse(cid)
+     && aid.matches('^[A-Za-z0-9_-]{1,100}
+   allow read: if kind in ['students','rooms','subjects','terms'] && admin();
+   allow create: if kind in ['students','rooms','subjects','terms'] && admin()
+     && id.matches('^[A-Za-z0-9_-]{1,60}$')
+     && request.resource.data.keys().hasOnly(['code','name','active','createdAt'])
+     && request.resource.data.code == id && request.resource.data.name is string
+     && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 160
+     && request.resource.data.active == true && request.resource.data.createdAt == request.time;
+   allow update: if kind in ['students','rooms','subjects','terms'] && admin()
+     && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['active','name'])
+     && request.resource.data.active is bool && request.resource.data.name is string && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 160;
+   allow delete: if false;
+  }
+ }
+}
+)
+     && request.resource.data.keys().hasOnly(['title','maxScore','due','level','room','subject','studentCount','recordCount','createdBy','createdAt'])
+     && request.resource.data.keys().hasAll(['title','maxScore','due','level','room','subject','studentCount','recordCount','createdBy','createdAt'])
+     && request.resource.data.title is string && request.resource.data.title.size() > 0 && request.resource.data.title.size() <= 160
+     && request.resource.data.maxScore is number && request.resource.data.maxScore > 0 && request.resource.data.maxScore <= 1000
+     && request.resource.data.due is string && request.resource.data.due.size() <= 100
+     && request.resource.data.level is string && request.resource.data.level.size() <= 100
+     && request.resource.data.room is string && request.resource.data.room.size() <= 100
+     && request.resource.data.subject is string && request.resource.data.subject.size() <= 160
+     && request.resource.data.studentCount is int && request.resource.data.studentCount > 0 && request.resource.data.studentCount <= 500
+     && request.resource.data.recordCount is int && request.resource.data.recordCount >= 0 && request.resource.data.recordCount <= request.resource.data.studentCount
+     && request.resource.data.createdBy == request.auth.uid && request.resource.data.createdAt == request.time;
+   allow update, delete: if false;
+   match /students/{sid} {
+    function header(){return getAfter(/databases/$(database)/documents/legacyArchives/$(cid)/assignments/$(aid)).data;}
+    allow read: if owner();
+    allow create: if owner() && openCourse(cid) && enrolled(cid,sid)
+      && request.resource.data.keys().hasOnly(['name','level','room','subject','no','record'])
+      && request.resource.data.name == get(/databases/$(database)/documents/teachingAssignments/$(cid)/roster/$(sid)).data.name
+      && request.resource.data.level is string && request.resource.data.level.size() <= 100
+      && request.resource.data.room is string && request.resource.data.room.size() <= 100
+      && request.resource.data.subject is string && request.resource.data.subject.size() <= 160
+      && request.resource.data.no is string && request.resource.data.no.size() <= 100
+      && header().createdBy == request.auth.uid
+      && (request.resource.data.record == null || validLegacy(request.resource.data.record));
+    function validLegacy(rec){return rec is map
+      && rec.keys().hasOnly(['studentId','submitted','score','status','note','originalTs'])
+      && rec.studentId == sid && rec.submitted is bool
+      && ((rec.submitted == true && rec.status == 'submitted') || (rec.submitted == false && rec.status in ['missing','leave','absent'] && rec.score == null))
+      && (rec.score == null || (rec.score is number && rec.score >= 0 && rec.score <= header().maxScore))
+      && rec.note is string && rec.note.size() <= 2000
+      && (rec.originalTs == null || (rec.originalTs is int && rec.originalTs >= 0));}
+    allow update, delete: if false;
+   }
+  }
   match /{kind}/{id} {
    allow read: if kind in ['students','rooms','subjects','terms'] && admin();
    allow create: if kind in ['students','rooms','subjects','terms'] && admin()
