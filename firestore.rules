@@ -14,7 +14,9 @@ service cloud.firestore {
      && getAfter(/databases/$(database)/documents/teacherRequests/$(uid)).data.status == 'approved'
      && request.resource.data.name == get(/databases/$(database)/documents/teacherRequests/$(uid)).data.name
      && request.resource.data.email == get(/databases/$(database)/documents/teacherRequests/$(uid)).data.email;
-   allow list, update, delete: if false;
+   allow list: if owner();
+   allow update: if owner() && resource.data.role == 'teacher' && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['active']) && request.resource.data.active is bool;
+   allow delete: if false;
   }
   match /teacherRequests/{uid} {
    allow get: if own(uid) || owner();
@@ -33,6 +35,18 @@ service cloud.firestore {
      && getAfter(/databases/$(database)/documents/profiles/$(uid)).data.active == true));
    allow delete: if false;
   }
+  function activeRecord(kind,id){return id is string && id.size() > 0 && get(/databases/$(database)/documents/$(kind)/$(id)).data.active == true;}
+  match /teachingAssignments/{id} {
+   allow read: if admin() || (signed() && profile().active == true && profile().role == 'teacher' && resource.data.teacherUid == request.auth.uid);
+   allow create: if admin() && request.resource.data.keys().hasOnly(['teacherUid','roomId','subjectId','termId','active','createdAt'])
+     && request.resource.data.teacherUid is string && get(/databases/$(database)/documents/profiles/$(request.resource.data.teacherUid)).data.role == 'teacher'
+     && activeRecord('profiles',request.resource.data.teacherUid) && activeRecord('rooms',request.resource.data.roomId)
+     && activeRecord('subjects',request.resource.data.subjectId) && activeRecord('terms',request.resource.data.termId)
+     && id == request.resource.data.teacherUid + '__' + request.resource.data.roomId + '__' + request.resource.data.subjectId + '__' + request.resource.data.termId
+     && request.resource.data.active == true && request.resource.data.createdAt == request.time;
+   allow update: if admin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['active']) && request.resource.data.active == false;
+   allow delete: if false;
+  }
   match /{kind}/{id} {
    allow read: if kind in ['students','rooms','subjects','terms'] && admin();
    allow create: if kind in ['students','rooms','subjects','terms'] && admin()
@@ -42,8 +56,8 @@ service cloud.firestore {
      && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 160
      && request.resource.data.active == true && request.resource.data.createdAt == request.time;
    allow update: if kind in ['students','rooms','subjects','terms'] && admin()
-     && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['active'])
-     && request.resource.data.active is bool;
+     && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['active','name'])
+     && request.resource.data.active is bool && request.resource.data.name is string && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 160;
    allow delete: if false;
   }
  }
