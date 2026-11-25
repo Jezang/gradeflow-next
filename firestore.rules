@@ -162,6 +162,15 @@ service cloud.firestore {
     allow update, delete: if false;
    }
   }
+  // One send attempt per account per server-time 30-second bucket.
+  match /lineRate/{uid}/slots/{slot} {
+   allow create: if own(uid) && staff()
+     && request.resource.data.keys().hasOnly(['uid','bucket'])
+     && request.resource.data.uid == uid && request.resource.data.bucket is int
+     && slot == string(request.resource.data.bucket)
+     && request.resource.data.bucket == int(request.time.toMillis()/30000);
+   allow read, update, delete: if false;
+  }
   match /{kind}/{id} {
    allow read: if kind in ['students','rooms','subjects','terms'] && admin();
    allow create: if kind in ['students','rooms','subjects','terms'] && admin()
