@@ -25,3 +25,17 @@ export function inspectBackup(raw:unknown){
  }
  return {total:rows.size,counts,issues};
 }
+
+export function backupRows(raw:unknown):BackupRow[]{const report=inspectBackup(raw);if(report.issues.length)throw Error('ไฟล์มีข้อผิดพลาด ต้องแก้ไขก่อน');return (raw as {rows:BackupRow[]}).rows;}
+export function equalBackup(a:unknown,b:unknown):boolean{
+ if(a===b)return true;
+ if(!a||!b||typeof a!=='object'||typeof b!=='object'||Array.isArray(a)!==Array.isArray(b))return false;
+ return Object.keys(a).length===Object.keys(b).length&&Object.entries(a).every(([k,v])=>Object.hasOwn(b,k)&&equalBackup(v,(b as Record<string,unknown>)[k]));
+}
+export function compareBackup(expected:BackupRow[],actual:BackupRow[]){
+ const live=new Map(actual.map(r=>[r.path,r.data])),source=new Map(expected.map(r=>[r.path,r.data]));
+ const missing:string[]=[],changed:string[]=[],extra:string[]=[];let equal=0;
+ for(const row of expected){if(!live.has(row.path))missing.push(row.path);else if(equalBackup(row.data,live.get(row.path)))equal++;else changed.push(row.path)}
+ for(const row of actual)if(!source.has(row.path))extra.push(row.path);
+ return {equal,missing,changed,extra};
+}
