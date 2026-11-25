@@ -69,7 +69,19 @@ service cloud.firestore {
      && request.resource.data.title is string && request.resource.data.title.size() > 0 && request.resource.data.title.size() <= 160
      && request.resource.data.maxScore is number && request.resource.data.maxScore > 0 && request.resource.data.maxScore <= 1000
      && request.resource.data.createdBy == request.auth.uid && request.resource.data.createdAt == request.time && request.resource.data.active == true;
-   allow update: if openCourse(cid) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['active']) && request.resource.data.active == false;
+   function archiveHeader(aid){return get(/databases/$(database)/documents/legacyArchives/$(cid)/assignments/$(aid)).data;}
+   allow create: if owner() && openCourse(cid)
+     && request.resource.data.keys().hasOnly(['title','maxScore','createdBy','createdAt','active','legacyId','legacyDue','importPending'])
+     && request.resource.data.legacyId is string && wid == 'legacy_' + request.resource.data.legacyId
+     && request.resource.data.title == archiveHeader(request.resource.data.legacyId).title
+     && request.resource.data.maxScore == archiveHeader(request.resource.data.legacyId).maxScore
+     && request.resource.data.legacyDue == archiveHeader(request.resource.data.legacyId).due
+     && request.resource.data.createdBy == request.auth.uid && request.resource.data.createdAt == request.time
+     && request.resource.data.active == false && request.resource.data.importPending == true;
+   allow update: if owner() && openCourse(cid) && resource.data.get('importPending',false) == true
+     && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['active','importPending'])
+     && request.resource.data.active == true && request.resource.data.importPending == false;
+   allow update: if openCourse(cid) && resource.data.get('importPending',false) == false && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['active']) && request.resource.data.active == false;
    allow delete: if false;
    match /submissions/{sid} {
     function work(){return get(/databases/$(database)/documents/teachingAssignments/$(cid)/work/$(wid)).data;}
@@ -81,7 +93,15 @@ service cloud.firestore {
       && request.resource.data.updatedBy == request.auth.uid && request.resource.data.updatedAt == request.time;}
     function auditPath(){return /databases/$(database)/documents/teachingAssignments/$(cid)/work/$(wid)/submissions/$(sid)/history/$(request.resource.data.auditId);}
     allow create: if validResult() && request.resource.data.submitted == true && request.resource.data.keys().hasOnly(['studentId','score','submitted','updatedBy','updatedAt']);
-    allow update: if validResult() && request.resource.data.keys().hasOnly(['studentId','score','submitted','updatedBy','updatedAt','auditId'])
+    function archivedRow(){return get(/databases/$(database)/documents/legacyArchives/$(cid)/assignments/$(work().legacyId)/students/$(sid)).data;}
+    allow create: if owner() && openCourse(cid) && work().get('importPending',false) == true && work().active == false && enrolled(cid,sid)
+      && request.resource.data.keys().hasOnly(['studentId','score','submitted','updatedBy','updatedAt','legacy'])
+      && archivedRow().record != null && request.resource.data.legacy == archivedRow().record
+      && request.resource.data.studentId == sid && request.resource.data.score == archivedRow().record.score
+      && request.resource.data.submitted == archivedRow().record.submitted
+      && request.resource.data.updatedBy == request.auth.uid && request.resource.data.updatedAt == request.time;
+    allow update: if validResult() && request.resource.data.keys().hasOnly(['studentId','score','submitted','updatedBy','updatedAt','auditId','legacy'])
+      && request.resource.data.get('legacy',null) == resource.data.get('legacy',null)
       && request.resource.data.auditId is string && !exists(auditPath())
       && getAfter(auditPath()).data.beforeScore == resource.data.score
       && getAfter(auditPath()).data.beforeSubmitted == resource.data.submitted
