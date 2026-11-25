@@ -1,6 +1,6 @@
 {
   "name": "gradeflow-next",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -8,20 +8,26 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test:rules": "node --test tests/firestore.test.mjs",
-    "test:ranking": "node --experimental-strip-types --disable-warning=ExperimentalWarning --test tests/ranking.test.mjs"
+    "test:ranking": "node --experimental-strip-types --disable-warning=ExperimentalWarning --test tests/ranking.test.mjs",
+    "test:reports": "node --experimental-strip-types --disable-warning=ExperimentalWarning --test tests/reports.test.mjs"
   },
   "dependencies": {
     "next": "^15.5.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "firebase": "^12.0.0",
-    "@zxing/browser": "^0.1.5"
+    "@zxing/browser": "^0.1.5",
+    "exceljs": "^4.4.0",
+    "jsbarcode": "^3.12.1",
+    "qrcode": "^1.5.4"
   },
   "devDependencies": {
     "typescript": "^5.8.0",
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
-    "@firebase/rules-unit-testing": "^5.0.0"
+    "@firebase/rules-unit-testing": "^5.0.0",
+    "@types/jsbarcode": "^3.11.4",
+    "@types/qrcode": "^1.5.5"
   }
 }
