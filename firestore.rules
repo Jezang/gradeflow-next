@@ -1,11 +1,50 @@
 rules_version = '2';
 service cloud.firestore {
  match /databases/{database}/documents {
-  // Initial deny-by-default setup. Role assignments are console/admin-only.
+  function signed(){return request.auth != null;}
+  function own(uid){return signed() && request.auth.uid == uid;}
+  function profile(){return get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data;}
+  function owner(){return signed() && profile().active == true && profile().role == 'super_admin';}
+  function admin(){return signed() && profile().active == true && profile().role in ['super_admin','admin'];}
   match /profiles/{uid} {
-   allow get: if request.auth != null && request.auth.uid == uid;
-   allow list, create, update, delete: if false;
+   allow get: if own(uid) || owner();
+   allow create: if owner() && request.resource.data.keys().hasOnly(['role','active','name','email'])
+     && request.resource.data.role == 'teacher' && request.resource.data.active == true
+     && get(/databases/$(database)/documents/teacherRequests/$(uid)).data.status == 'pending'
+     && getAfter(/databases/$(database)/documents/teacherRequests/$(uid)).data.status == 'approved'
+     && request.resource.data.name == get(/databases/$(database)/documents/teacherRequests/$(uid)).data.name
+     && request.resource.data.email == get(/databases/$(database)/documents/teacherRequests/$(uid)).data.email;
+   allow list, update, delete: if false;
   }
-  match /{document=**} { allow read, write: if false; }
+  match /teacherRequests/{uid} {
+   allow get: if own(uid) || owner();
+   allow list: if owner();
+   allow create: if own(uid) && request.auth.token.email_verified == true
+     && !exists(/databases/$(database)/documents/profiles/$(uid))
+     && request.resource.data.keys().hasOnly(['name','email','status','createdAt'])
+     && request.resource.data.name is string && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 120
+     && request.resource.data.email == request.auth.token.email
+     && request.resource.data.status == 'pending' && request.resource.data.createdAt == request.time;
+   allow update: if owner() && resource.data.status == 'pending'
+     && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','reviewedAt'])
+     && request.resource.data.reviewedAt == request.time
+     && (request.resource.data.status == 'rejected' || (request.resource.data.status == 'approved'
+     && getAfter(/databases/$(database)/documents/profiles/$(uid)).data.role == 'teacher'
+     && getAfter(/databases/$(database)/documents/profiles/$(uid)).data.active == true));
+   allow delete: if false;
+  }
+  match /{kind}/{id} {
+   allow read: if kind in ['students','rooms','subjects','terms'] && admin();
+   allow create: if kind in ['students','rooms','subjects','terms'] && admin()
+     && id.matches('^[A-Za-z0-9_-]{1,60}$')
+     && request.resource.data.keys().hasOnly(['code','name','active','createdAt'])
+     && request.resource.data.code == id && request.resource.data.name is string
+     && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 160
+     && request.resource.data.active == true && request.resource.data.createdAt == request.time;
+   allow update: if kind in ['students','rooms','subjects','terms'] && admin()
+     && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['active'])
+     && request.resource.data.active is bool;
+   allow delete: if false;
+  }
  }
 }
