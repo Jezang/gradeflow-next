@@ -1,6 +1,8 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {inspectLegacy} from '../lib/migration.ts';
+import {inspectLegacy,prepareLegacy,matchLegacy} from '../lib/migration.ts';
 const example=()=>({students:{'001':{id:'001',name:'Test',level:'M2',room:'5',subject:'ENG',no:'1'},'002':{id:'002',name:'Test 2'}},assignments:{a1:{id:'a1',name:'Work',maxScore:10}},records:{a1:{'001':{score:0,submitted:true,note:'note',ts:123},'002':{score:null,submitted:false,status:'leave'}}},config:{lineToken:'secret-test-value'}});
 test('counts valid zero scores and leave separately, never exports config',()=>{const s=inspectLegacy(example());assert.equal(s.students,2);assert.equal(s.records,2);assert.equal(s.sent,1);assert.equal(s.graded,1);assert.equal(s.leave,1);assert.equal(s.notes,1);assert.equal(s.issues.length,0);assert.equal(s.roster[0].code,'001');assert.ok(!JSON.stringify(s).includes('secret-test-value'))});
 test('rejects missing structures, invalid score and orphan records',()=>{assert.throws(()=>inspectLegacy({students:{}}));const d=example();d.records.a1['001'].score=11;d.records.a1.unknown={submitted:true,score:1};assert.equal(inspectLegacy(d).issues.length,2)});
+
+test('preserves zero, notes, timestamp and leave; explicit mapping rejects mismatch',()=>{const d=prepareLegacy(example());const a=d.work[0];assert.equal(a.records.find(r=>r.studentId==='001').score,0);assert.equal(a.records.find(r=>r.studentId==='001').originalTs,123);assert.equal(a.records.find(r=>r.studentId==='001').note,'note');assert.equal(a.records.find(r=>r.studentId==='002').status,'leave');const p=matchLegacy(a,d.roster,[{code:'001',name:'Test'}]);assert.equal(p.records.length,1);assert.equal(p.outside,1);assert.equal(p.problems.length,0);assert.equal(matchLegacy(a,d.roster,[{code:'001',name:'Wrong'}]).problems.length,2);});
