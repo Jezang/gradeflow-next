@@ -14,17 +14,21 @@
     "test:backup": "node --experimental-strip-types --disable-warning=ExperimentalWarning --test tests/backup.test.mjs",
     "test:line": "node --experimental-strip-types --disable-warning=ExperimentalWarning --test tests/line.test.mjs",
     "test:recovery": "node --experimental-strip-types --disable-warning=ExperimentalWarning --test tests/recovery.test.mjs",
-    "rehearse:recovery": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/recovery-emulator.mjs"
+    "rehearse:recovery": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/recovery-emulator.mjs",
+    "cf:build": "opennextjs-cloudflare build",
+    "cf:deploy": "opennextjs-cloudflare deploy -- --keep-vars",
+    "cf:preview": "opennextjs-cloudflare preview"
   },
   "dependencies": {
-    "next": "^15.5.0",
+    "next": "^15.5.27",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "firebase": "^12.0.0",
     "@zxing/browser": "^0.1.5",
     "exceljs": "^4.4.0",
     "jsbarcode": "^3.12.1",
-    "qrcode": "^1.5.4"
+    "qrcode": "^1.5.4",
+    "@opennextjs/cloudflare": "1.20.18"
   },
   "devDependencies": {
     "typescript": "^5.8.0",
@@ -33,6 +37,7 @@
     "@types/react-dom": "^19.0.0",
     "@firebase/rules-unit-testing": "^5.0.0",
     "@types/jsbarcode": "^3.11.4",
-    "@types/qrcode": "^1.5.5"
+    "@types/qrcode": "^1.5.5",
+    "wrangler": "^4.164.0"
   }
 }
