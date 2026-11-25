@@ -39,3 +39,13 @@ export function compareBackup(expected:BackupRow[],actual:BackupRow[]){
  for(const row of actual)if(!source.has(row.path))extra.push(row.path);
  return {equal,missing,changed,extra};
 }
+
+export type RecoveryRecord={path:string;code:string;name:string};
+export function planMasterRecovery(source:BackupRow[],missing:string[]){
+ const wanted=new Set(missing),eligible:RecoveryRecord[]=[],excluded:string[]=[];
+ for(const row of source){if(!wanted.has(row.path))continue;const [kind,id,...rest]=row.path.split('/');const d=row.data;
+ if(rest.length||!['students','rooms','subjects','terms'].includes(kind)||!id||!/^[A-Za-z0-9_-]{1,60}$/.test(id)||d.code!==id||d.active!==true||typeof d.name!=='string'||!d.name.trim()||d.name.length>160){excluded.push(row.path);continue}
+ eligible.push({path:row.path,code:id,name:d.name});
+ }
+ return {eligible,excluded};
+}
