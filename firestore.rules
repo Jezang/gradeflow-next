@@ -1,0 +1,11 @@
+rules_version = '2';
+service cloud.firestore {
+ match /databases/{database}/documents {
+  // Initial deny-by-default setup. Role assignments are console/admin-only.
+  match /profiles/{uid} {
+   allow get: if request.auth != null && request.auth.uid == uid;
+   allow list, create, update, delete: if false;
+  }
+  match /{document=**} { allow read, write: if false; }
+ }
+}
