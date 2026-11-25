@@ -47,6 +47,40 @@ service cloud.firestore {
    allow update: if admin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['active']) && request.resource.data.active == false;
    allow delete: if false;
   }
+  function course(id){return get(/databases/$(database)/documents/teachingAssignments/$(id)).data;}
+  function staff(){return signed() && profile().active == true && profile().role in ['teacher','admin','super_admin'];}
+  function canCourse(id){return staff() && (admin() || course(id).teacherUid == request.auth.uid);}
+  function openCourse(id){return canCourse(id) && course(id).active == true && activeRecord('profiles',course(id).teacherUid);}
+  function enrolled(cid,sid){return get(/databases/$(database)/documents/teachingAssignments/$(cid)/roster/$(sid)).data.active == true;}
+  match /teachingAssignments/{cid}/roster/{sid} {
+   allow read: if canCourse(cid);
+   allow create, update: if admin() && course(cid).active == true
+     && request.resource.data.keys().hasOnly(['studentId','name','active'])
+     && request.resource.data.studentId == sid && request.resource.data.active is bool
+     && request.resource.data.name is string && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 160
+     && request.resource.data.name == get(/databases/$(database)/documents/students/$(sid)).data.name
+     && (request.resource.data.active == false || activeRecord('students',sid));
+   allow delete: if false;
+  }
+  match /teachingAssignments/{cid}/work/{wid} {
+   allow read: if canCourse(cid);
+   allow create: if openCourse(cid) && request.resource.data.keys().hasOnly(['title','maxScore','createdBy','createdAt','active'])
+     && request.resource.data.title is string && request.resource.data.title.size() > 0 && request.resource.data.title.size() <= 160
+     && request.resource.data.maxScore is number && request.resource.data.maxScore > 0 && request.resource.data.maxScore <= 1000
+     && request.resource.data.createdBy == request.auth.uid && request.resource.data.createdAt == request.time && request.resource.data.active == true;
+   allow update: if openCourse(cid) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['active']) && request.resource.data.active == false;
+   allow delete: if false;
+   match /submissions/{sid} {
+    function work(){return get(/databases/$(database)/documents/teachingAssignments/$(cid)/work/$(wid)).data;}
+    allow read: if canCourse(cid);
+    allow create, update: if openCourse(cid) && work().active == true && enrolled(cid,sid)
+      && request.resource.data.keys().hasOnly(['studentId','score','submitted','updatedBy','updatedAt'])
+      && request.resource.data.studentId == sid && request.resource.data.submitted == true
+      && (request.resource.data.score == null || (request.resource.data.score is number && request.resource.data.score >= 0 && request.resource.data.score <= work().maxScore))
+      && request.resource.data.updatedBy == request.auth.uid && request.resource.data.updatedAt == request.time;
+    allow delete: if false;
+   }
+  }
   match /{kind}/{id} {
    allow read: if kind in ['students','rooms','subjects','terms'] && admin();
    allow create: if kind in ['students','rooms','subjects','terms'] && admin()
