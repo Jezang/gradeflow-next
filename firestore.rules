@@ -107,22 +107,7 @@ service cloud.firestore {
   match /legacyArchives/{cid}/assignments/{aid} {
    allow read: if owner();
    allow create: if owner() && openCourse(cid)
-     && aid.matches('^[A-Za-z0-9_-]{1,100}
-   allow read: if kind in ['students','rooms','subjects','terms'] && admin();
-   allow create: if kind in ['students','rooms','subjects','terms'] && admin()
-     && id.matches('^[A-Za-z0-9_-]{1,60}$')
-     && request.resource.data.keys().hasOnly(['code','name','active','createdAt'])
-     && request.resource.data.code == id && request.resource.data.name is string
-     && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 160
-     && request.resource.data.active == true && request.resource.data.createdAt == request.time;
-   allow update: if kind in ['students','rooms','subjects','terms'] && admin()
-     && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['active','name'])
-     && request.resource.data.active is bool && request.resource.data.name is string && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 160;
-   allow delete: if false;
-  }
- }
-}
-)
+     && aid.matches('^[A-Za-z0-9_-]{1,100}$')
      && request.resource.data.keys().hasOnly(['title','maxScore','due','level','room','subject','studentCount','recordCount','createdBy','createdAt'])
      && request.resource.data.keys().hasAll(['title','maxScore','due','level','room','subject','studentCount','recordCount','createdBy','createdAt'])
      && request.resource.data.title is string && request.resource.data.title.size() > 0 && request.resource.data.title.size() <= 160
