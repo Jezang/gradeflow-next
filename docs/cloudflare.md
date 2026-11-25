@@ -5,3 +5,6 @@ Use Workers, not a static Pages export. Existing Next.js Node route needs OpenNe
 3. After first deployment, copy exact workers.dev hostname into Firebase Authentication authorized domains. Existing project and Auth users remain unchanged; do not change database rules. Both hosts share real data; use synthetic records and avoid student data until acceptance.
 4. Add LINE_SESSION_KEY as a runtime Secret (not build variable), generate fresh 64 hex chars locally with openssl rand -hex 32. Do not commit or send the value. Check LINE status, save/clear, send and rate limiting. Sessions are per domain; no token migration. Manual mode works without key if updated Firebase Rules are published.
 5. Test sign in, camera/USB, grading/audit, reports, backup, mobile, LINE and usage/limits. Do not cut over until approved. No R2 or paid bindings configured.
+
+## Initial build
+Production branch for the parallel Cloudflare trial: `hosting/cloudflare-rc1`. Trigger initial build after connecting the repository and selecting this branch.
