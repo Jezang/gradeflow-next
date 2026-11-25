@@ -1,6 +1,6 @@
 {
   "name": "gradeflow-next",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -9,7 +9,8 @@
     "typecheck": "tsc --noEmit",
     "test:rules": "node --test tests/firestore.test.mjs",
     "test:ranking": "node --experimental-strip-types --disable-warning=ExperimentalWarning --test tests/ranking.test.mjs",
-    "test:reports": "node --experimental-strip-types --disable-warning=ExperimentalWarning --test tests/reports.test.mjs"
+    "test:reports": "node --experimental-strip-types --disable-warning=ExperimentalWarning --test tests/reports.test.mjs",
+    "test:migration": "node --experimental-strip-types --disable-warning=ExperimentalWarning --test tests/migration.test.mjs"
   },
   "dependencies": {
     "next": "^15.5.0",
