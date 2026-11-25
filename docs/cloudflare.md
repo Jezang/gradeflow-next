@@ -1,0 +1,7 @@
+# Cloudflare Workers trial — GradeFlow Next RC1
+Use Workers, not a static Pages export. Existing Next.js Node route needs OpenNext. Keep Vercel and main unchanged.
+1. Sign into Cloudflare and choose Workers & Pages, Create application, import Git repository Jezang/gradeflow-next. Authorize only this repository. Use branch hosting/cloudflare-rc1, worker name gradeflow-next, root directory /, Node 22 or later, build command npm run cf:build, deploy command npm run cf:deploy. Do not enable automatic preview deployments for unrelated branches.
+2. Check GitHub Cloudflare compatibility workflow first. Build/dry-run does not prove deployed runtime compatibility or free-plan size/CPU limits.
+3. After first deployment, copy exact workers.dev hostname into Firebase Authentication authorized domains. Existing project and Auth users remain unchanged; do not change database rules. Both hosts share real data; use synthetic records and avoid student data until acceptance.
+4. Add LINE_SESSION_KEY as a runtime Secret (not build variable), generate fresh 64 hex chars locally with openssl rand -hex 32. Do not commit or send the value. Check LINE status, save/clear, send and rate limiting. Sessions are per domain; no token migration. Manual mode works without key if updated Firebase Rules are published.
+5. Test sign in, camera/USB, grading/audit, reports, backup, mobile, LINE and usage/limits. Do not cut over until approved. No R2 or paid bindings configured.
