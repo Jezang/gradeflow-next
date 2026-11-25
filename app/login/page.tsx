@@ -15,8 +15,8 @@ export default function Login(){
    stopProfile?.();setUser(u);setRole(null);setPassword('');
    if(!u){setStatus('ยินดีต้อนรับคุณครู');setBusy(false);return;}
    setBusy(true);setStatus('กำลังตรวจสอบสิทธิ์…');
-   stopProfile=onSnapshot(doc(db,'profiles',u.uid),snap=>{
-    const p=snap.data();const allowed=p?.active===true&&['super_admin','admin','teacher'].includes(p?.role);
+   stopProfile=onSnapshot(doc(db,'profiles',u.uid),{includeMetadataChanges:true},snap=>{
+    const p=snap.data();const allowed=!snap.metadata.fromCache&&p?.active===true&&['super_admin','admin','teacher'].includes(p?.role);
     setRole(allowed&&!snap.metadata.fromCache?p?.role:null);setStatus(allowed?'บัญชีได้รับอนุญาตแล้ว':'บัญชียังไม่ได้รับอนุญาต กรุณาติดต่อผู้ดูแล');setBusy(false);
    },()=>{setRole(null);setStatus('ไม่สามารถตรวจสอบสิทธิ์ได้ กรุณาลองใหม่');setBusy(false);});
   },()=>{setRole(null);setStatus('ไม่สามารถตรวจสอบการเข้าสู่ระบบ');setBusy(false)});
