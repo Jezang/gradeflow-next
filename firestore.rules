@@ -15,6 +15,7 @@ service cloud.firestore {
      && request.resource.data.name == get(/databases/$(database)/documents/teacherRequests/$(uid)).data.name
      && request.resource.data.email == get(/databases/$(database)/documents/teacherRequests/$(uid)).data.email;
    allow list: if owner();
+   allow update: if own(uid) && resource.data.active == true && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name']) && request.resource.data.name is string && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 120;
    allow update: if owner() && resource.data.role == 'teacher' && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['active']) && request.resource.data.active is bool;
    allow delete: if false;
   }
@@ -39,7 +40,7 @@ service cloud.firestore {
   match /teachingAssignments/{id} {
    allow read: if admin() || (signed() && profile().active == true && profile().role == 'teacher' && resource.data.teacherUid == request.auth.uid);
    allow create: if admin() && request.resource.data.keys().hasOnly(['teacherUid','roomId','subjectId','termId','active','createdAt'])
-     && request.resource.data.teacherUid is string && get(/databases/$(database)/documents/profiles/$(request.resource.data.teacherUid)).data.role == 'teacher'
+     && request.resource.data.teacherUid is string && (get(/databases/$(database)/documents/profiles/$(request.resource.data.teacherUid)).data.role == 'teacher' || ((owner() || request.resource.data.teacherUid == request.auth.uid) && get(/databases/$(database)/documents/profiles/$(request.resource.data.teacherUid)).data.role in ['admin','super_admin']))
      && activeRecord('profiles',request.resource.data.teacherUid) && activeRecord('rooms',request.resource.data.roomId)
      && activeRecord('subjects',request.resource.data.subjectId) && activeRecord('terms',request.resource.data.termId)
      && id == request.resource.data.teacherUid + '__' + request.resource.data.roomId + '__' + request.resource.data.subjectId + '__' + request.resource.data.termId
@@ -73,11 +74,31 @@ service cloud.firestore {
    match /submissions/{sid} {
     function work(){return get(/databases/$(database)/documents/teachingAssignments/$(cid)/work/$(wid)).data;}
     allow read: if canCourse(cid);
-    allow create, update: if openCourse(cid) && work().active == true && enrolled(cid,sid)
-      && request.resource.data.keys().hasOnly(['studentId','score','submitted','updatedBy','updatedAt'])
-      && request.resource.data.studentId == sid && request.resource.data.submitted == true
+    function validResult(){return openCourse(cid) && work().active == true && enrolled(cid,sid)
+      && request.resource.data.studentId == sid && request.resource.data.submitted is bool
+      && (request.resource.data.submitted == true || request.resource.data.score == null)
       && (request.resource.data.score == null || (request.resource.data.score is number && request.resource.data.score >= 0 && request.resource.data.score <= work().maxScore))
-      && request.resource.data.updatedBy == request.auth.uid && request.resource.data.updatedAt == request.time;
+      && request.resource.data.updatedBy == request.auth.uid && request.resource.data.updatedAt == request.time;}
+    function auditPath(){return /databases/$(database)/documents/teachingAssignments/$(cid)/work/$(wid)/submissions/$(sid)/history/$(request.resource.data.auditId);}
+    allow create: if validResult() && request.resource.data.submitted == true && request.resource.data.keys().hasOnly(['studentId','score','submitted','updatedBy','updatedAt']);
+    allow update: if validResult() && request.resource.data.keys().hasOnly(['studentId','score','submitted','updatedBy','updatedAt','auditId'])
+      && request.resource.data.auditId is string && !exists(auditPath())
+      && getAfter(auditPath()).data.beforeScore == resource.data.score
+      && getAfter(auditPath()).data.beforeSubmitted == resource.data.submitted
+      && getAfter(auditPath()).data.afterScore == request.resource.data.score
+      && getAfter(auditPath()).data.afterSubmitted == request.resource.data.submitted
+      && getAfter(auditPath()).data.actor == request.auth.uid && getAfter(auditPath()).data.at == request.time;
+    match /history/{hid} {
+     function submission(){return /databases/$(database)/documents/teachingAssignments/$(cid)/work/$(wid)/submissions/$(sid);}
+     allow read: if canCourse(cid);
+     allow create: if openCourse(cid) && exists(submission())
+       && request.resource.data.keys().hasOnly(['beforeScore','beforeSubmitted','afterScore','afterSubmitted','actor','at'])
+       && request.resource.data.beforeScore == get(submission()).data.score && request.resource.data.beforeSubmitted == get(submission()).data.submitted
+       && request.resource.data.afterScore == getAfter(submission()).data.score && request.resource.data.afterSubmitted == getAfter(submission()).data.submitted
+       && getAfter(submission()).data.auditId == hid && getAfter(submission()).data.updatedAt == request.time
+       && request.resource.data.actor == request.auth.uid && request.resource.data.at == request.time;
+     allow update, delete: if false;
+    }
     allow delete: if false;
    }
   }
