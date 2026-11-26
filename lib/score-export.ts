@@ -46,6 +46,15 @@ export function scoreExportTable(scope: ExportScope, students: readonly ScoreExp
   ];
 }
 
+// Local identity for a reviewed export snapshot; never send this key to a server or log it.
+export function scoreExportSnapshotKey(scope: ExportScope, students: readonly ScoreExportRow[]): string | null {
+  try {
+    return JSON.stringify(scoreExportTable(scope, students));
+  } catch {
+    return null;
+  }
+}
+
 export function previewSheetsMapping(rawSheet: string, rawMapping: SheetsMapping) {
   const sheet = rawSheet.trim();
   if (!sheet || /[\u0000-\u001f]/.test(sheet)) {
