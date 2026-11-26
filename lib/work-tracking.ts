@@ -21,3 +21,11 @@ export function deadlineState(submitted:boolean,deadline:number|null,revision:nu
 }
 export const deadlineLabels={submitted:'ส่งแล้ว',unscheduled:'ไม่กำหนดวันส่ง',open:'ยังไม่ถึงกำหนด',revision:'ช่วงแก้งาน',overdue:'เลยกำหนด'} as const;
 export const attendanceLabels={leave:'ลา',absent:'ขาด',missing:'ยังไม่ส่ง'} as const;
+
+
+/** Never select an arbitrary term or teacher when subject and room are ambiguous. */
+export function resolveCheckingCourse<T extends {id:string;data:{active?:unknown;subjectId?:unknown;roomId?:unknown}}>(rows:readonly T[],subject:string,room:string):string{
+ if(!subject||!room)return '';
+ const candidates=rows.filter(row=>row.data.active===true&&row.data.subjectId===subject&&row.data.roomId===room);
+ return candidates.length===1?candidates[0].id:'';
+}
