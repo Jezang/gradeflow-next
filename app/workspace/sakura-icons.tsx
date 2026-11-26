@@ -1,6 +1,8 @@
 import type {ReactNode} from 'react';
 
 const glyphs: Record<string, ReactNode> = {
+ flower:<><path d="M12 9C4-2 0 9 8 12C-1 16 7 25 12 16C17 25 25 16 16 12C24 9 20-2 12 9Z"/><circle cx="12" cy="12" r="2"/></>,
+ sprout:<><path d="M12 21v-9M12 15C3 15 3 5 3 5s9 0 9 10ZM12 12c0-9 9-9 9-9s0 9-9 9Z"/></>,
  home:<><path d="m3 10 9-7 9 7v10H3Z"/><path d="M9 20v-6h6v6"/></>,
  scanner:<><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5M3 12h18"/><path d="M8 8v2m4-2v2m4-2v2"/></>,
  students:<><circle cx="9" cy="8" r="3"/><path d="M2 20v-2a7 7 0 0 1 14 0v2M17 5a3 3 0 0 1 0 6m2 3a5 5 0 0 1 3 5"/></>,
