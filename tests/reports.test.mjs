@@ -1,5 +1,5 @@
 import {codeBox} from '../lib/worksheet-placement.ts';
-import {planSheetGradeSync,sheetScoreColumns,proposeSheetMatches} from '../lib/sheet-grade-sync.ts';
+import {planSheetGradeSync,sheetScoreColumns,proposeSheetMatches,reviewSheetMatches} from '../lib/sheet-grade-sync.ts';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {gradebookCsvPreview} from '../lib/gradebook-csv-preview.ts';
@@ -103,4 +103,24 @@ test('worksheet placement stays on page and preserves code aspect ratio',()=>{
  const tall=codeBox(600,200,.5,{x:-1,y:-1,width:1});
  assert.equal(tall.width,100);assert.equal(tall.height,200);assert.equal(tall.left,0);assert.equal(tall.y,0);
  assert.throws(()=>codeBox(600,800,0,{x:0,y:0,width:.2}));
+});
+
+test('roster review handles Thai titles and spacing, shows partial matches and requires explicit unmatched selection',()=>{
+ const web=[{studentId:'a',name:'เด็กชาย สมชาย ใจดี'},{studentId:'b',name:'สมหญิง ใจดี'}];
+ const sheet=[{row:5,name:'ด.ช.สมชาย  ใจดี'},{row:6,name:'สมหญิง ใจงาม'}];
+ const partial=reviewSheetMatches(web,sheet);
+ assert.equal(partial.matches.length,1);
+ assert.equal(partial.complete,false);
+ assert.equal(partial.unresolved[0].studentId,'b');
+ assert.equal(partial.unused[0].row,6);
+ const done=reviewSheetMatches(web,sheet,{b:6});
+ assert.equal(done.complete,true);
+ const result=planSheetGradeSync({direction:'import',webMax:3,sheetMax:3,web:web.map(w=>({...w,score:null,submitted:false})),sheet:sheet.map(r=>({...r,value:2,formula:false})),matches:done.matches});
+ assert.equal(result[1].state,'reviewImport');
+ assert.throws(()=>planSheetGradeSync({direction:'import',webMax:3,sheetMax:3,web:web.map(w=>({...w,score:null,submitted:false})),sheet:sheet.map(r=>({...r,name:'changed',value:2,formula:false})),matches:done.matches}));
+ assert.equal(reviewSheetMatches(web,sheet,{b:5}).complete,false);
+ assert.equal(reviewSheetMatches(web,[sheet[0],{...sheet[1],studentId:'wrong'}],{b:6}).complete,false);
+ assert.equal(reviewSheetMatches(web,[...sheet,{row:7,name:'Extra'}],{b:6}).complete,false);
+ const duplicates=reviewSheetMatches([{studentId:'a',name:'นาย A'},{studentId:'b',name:'A'}],[{row:5,name:'A'},{row:6,name:'A'}]);
+ assert.equal(duplicates.matches.length,0);
 });
