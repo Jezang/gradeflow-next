@@ -155,3 +155,26 @@ export function resolveTerm2Master(rows:Term2MasterRow[],id:string,name:string,a
  if(!/^[A-Za-z0-9_-]{1,60}$/.test(id))throw Error('รหัสใหม่ไม่รองรับ: '+name);
  return {id,name,exists:false};
 }
+
+export function planTerm2Archives(prepared:PreparedLegacy){
+ const p=planEnglishTerm2(prepared);
+ if(p.unresolved.length||!p.studentCount||!p.groups.length)throw Error('ยังจัดกลุ่มนักเรียนไม่ครบ');
+ const groups=new Map(p.groups.map(g=>[g.key,g]));
+ const items=[];
+ for(const a of p.assignments){
+  if(a.unresolvedRecords.length||!a.partitions.length)throw Error('งาน '+a.work.title+' ยังมีข้อมูลหรือขอบเขตที่จับคู่ไม่ได้');
+  for(const partition of a.partitions){
+   const g=groups.get(partition.groupKey);
+   if(!g)throw Error('ไม่พบกลุ่มปลายทาง');
+   const records=new Map(partition.records.map(r=>[r.studentId,r]));
+   if(records.size!==partition.records.length)throw Error('บันทึกซ้ำในงานเดิม');
+   const students=g.students.map(s=>({code:s.code,value:{name:s.name,level:s.level,room:s.room,subject:s.subject,no:s.no,record:records.get(s.code)??null}}));
+   const recordCount=students.filter(s=>s.value.record!==null).length;
+   if(recordCount!==records.size)throw Error('บันทึกไม่ตรงกับรายชื่อ');
+   items.push({key:JSON.stringify([g.key,a.work.id]),groupKey:g.key,room:'ม.'+g.level+'/'+g.room,subject:g.subject,work:a.work,students,recordCount,
+    needsScopeConfirmation:recordCount!==students.length});
+  }
+ }
+ if(items.reduce((n,x)=>n+x.recordCount,0)!==p.recordCount)throw Error('ยอดบันทึกไม่ครบ');
+ return {items,recordCount:p.recordCount,workCount:p.assignments.length,studentCount:p.studentCount};
+}
