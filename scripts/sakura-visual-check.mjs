@@ -19,7 +19,10 @@ let serial=0;
 const pending=new Map();
 async function waitFor(fn,label,timeout=60000){
  const deadline=Date.now()+timeout;
- while(Date.now()<deadline){if(await fn())return;await sleep(200)}
+ while(Date.now()<deadline){
+  try{if(await fn())return}catch(e){if(!/context|navigation|Cannot find/i.test(e.message))throw e}
+  await sleep(200)
+ }
  throw Error('Timed out: '+label);
 }
 function send(method,params={}){
@@ -61,10 +64,11 @@ async function load(path,selector){
  await send('Page.navigate',{url:new URL(path,base).href});
  await waitFor(()=>evaluate('document.readyState==="complete"'),path);
  await waitFor(()=>has(selector),selector);
- await sleep(300);
+ // Development compilation and client hydration may finish after HTML arrives.
+ await sleep(800);
 }
 try{
- child=spawn(chrome,['--headless','--disable-gpu','--no-first-run','--no-default-browser-check','--disable-background-networking','--disable-sync','--disable-extensions','--no-sandbox','--remote-debugging-port=0','--user-data-dir='+profile,'--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE localhost, EXCLUDE 127.0.0.1','about:blank'],{stdio:'ignore'});
+ child=spawn(chrome,['--headless','--disable-gpu','--no-first-run','--no-default-browser-check','--disable-background-networking','--disable-sync','--disable-extensions','--remote-debugging-port=0','--user-data-dir='+profile,'--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE localhost, EXCLUDE 127.0.0.1','about:blank'],{stdio:'ignore'});
  child.on('error',e=>errors.push(e.message));
  const portFile=join(profile,'DevToolsActivePort');
  await waitFor(()=>existsSync(portFile),'Chrome startup',20000);
@@ -90,7 +94,7 @@ try{
   await resize(width);
   await load('/','.home-scenic-hero');await capture(width,'home');
   await load('/demo','.hub-kpis');await capture(width,'dashboard');
-  await view('อันดับผลงาน','.hub-podium').catch(async e=>{if(width>850)throw e;await view('อันดับ','.hub-podium')});
+  await view(width<=850?'อันดับ':'อันดับผลงาน','.hub-podium');
   await capture(width,'champions');
   await view('ตรวจงาน','.demo-gradebook');await capture(width,'gradebook');
   const navVisible=await evaluate('Boolean(document.querySelector(".hub-bottom-nav").getClientRects().length)');
@@ -99,12 +103,16 @@ try{
   if(width<=850)await evaluate('document.querySelector(".hub-menu-toggle").click()');
   await clickText('aside nav button','ตั้งค่า');await waitFor(()=>has('.demo-theme-options'),'settings');
   await capture(width,'settings');
+  await evaluate('document.querySelector(".theme-mint").click()');
+  await waitFor(()=>has('.teacher-hub.mint'),'mint theme');
+  await capture(width,'mint-settings');
   await evaluate('document.querySelector(".theme-night").click()');
   await waitFor(()=>has('.teacher-hub.night'),'night theme');
   await capture(width,'night-settings');
   await view('ภาพรวม','.hub-kpis');await capture(width,'night-dashboard');
   if(width===390){
    await view('ตรวจงาน','.demo-gradebook');
+   await capture(width,'night-gradebook');
    await clickText('.score-row-actions button','แก้คะแนน');
    await waitFor(()=>has('.score-inline-edit input'),'score editor');
    const setInput=value=>evaluate('(()=>{const e=document.querySelector(".score-inline-edit input");Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value").set.call(e,'+JSON.stringify(value)+');e.dispatchEvent(new Event("input",{bubbles:true}));return true})()');
