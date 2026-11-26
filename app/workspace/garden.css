@@ -198,3 +198,24 @@
   .hub-section-heading h2{font-size:18px}
  }
 }
+
+/* Original, device-independent 2D Sakura characters and medals. */
+.sakura-animal,.sakura-medal{display:block;width:100%;height:100%}
+.sakura-icon-heading{display:flex;align-items:center;gap:8px}
+.sakura-icon-heading .sakura-icon{color:var(--sakura-accent,#963e61)}
+@media screen{
+ .teacher-hub .champions-panel .podium-step{position:relative;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:5px;padding:10px 8px 13px}
+ .teacher-hub .champions-panel .podium-character{width:clamp(48px,8vw,94px);height:auto;aspect-ratio:64/72;flex:none}
+ .teacher-hub .champions-panel .podium-medal{display:block;width:29px;height:34px;flex:none}
+ .teacher-hub .champions-panel .podium-step>strong{font-size:clamp(12px,1.3vw,15px);line-height:1.45;overflow-wrap:anywhere}
+ .teacher-hub .champions-panel .podium-step>small{font-size:12px;line-height:1.4}
+ .teacher-hub .champions-panel .sakura-animal-badge{display:grid;place-items:center;flex:none;width:42px;height:42px;padding:4px;background:#f8e4ed;border-radius:14px}
+ .teacher-hub.night .champions-panel .sakura-animal-badge{background:#4c3845}
+ @media(max-width:550px){
+  .teacher-hub .champions-panel .podium-character{width:clamp(39px,13vw,68px)}
+  .teacher-hub .champions-panel .podium-step{padding:7px 4px 10px;gap:4px}
+  .teacher-hub .champions-panel .podium-medal{width:24px;height:28px}
+  .teacher-hub .champions-panel .podium-step>small{font-size:11px}
+  .teacher-hub .champions-panel .sakura-animal-badge{width:36px;height:36px}
+ }
+}
