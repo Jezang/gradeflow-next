@@ -136,3 +136,22 @@ export function planEnglishTerm2(prepared:PreparedLegacy){
  });
  return {year:2569,term:2,groups:[...groups.values()].sort((a,b)=>a.key.localeCompare(b.key)),unresolved,assignments,studentCount:prepared.roster.length,recordCount:prepared.work.reduce((n,w)=>n+w.records.length,0)};
 }
+
+type Term2MasterRow={id:string;code:unknown;name:unknown;active:unknown};
+export type Term2Master={id:string;name:string;exists:boolean};
+// Exact displayed-name aliases only. Never guess from a similar name or overwrite a collision.
+export function resolveTerm2Master(rows:Term2MasterRow[],id:string,name:string,aliases:string[]=[]):Term2Master{
+ const norm=(s:unknown)=>typeof s==='string'?s.normalize('NFC').replace(/\s+/gu,''):'';
+ const names=new Set([name,...aliases].map(norm));
+ const matches=rows.filter(r=>names.has(norm(r.name)));
+ if(matches.length>1)throw Error('พบชื่อซ้ำ: '+name);
+ const collision=rows.find(r=>r.id===id);
+ const hit=matches[0];
+ if(collision&&(!hit||collision.id!==hit.id))throw Error('รหัสชนกับข้อมูลเดิม: '+name);
+ if(hit){
+  if(hit.active!==true||hit.code!==hit.id||!/^[A-Za-z0-9_-]{1,60}$/.test(hit.id)||typeof hit.name!=='string')throw Error('รายการเดิมไม่พร้อมใช้งาน: '+name);
+  return {id:hit.id,name:hit.name,exists:true};
+ }
+ if(!/^[A-Za-z0-9_-]{1,60}$/.test(id))throw Error('รหัสใหม่ไม่รองรับ: '+name);
+ return {id,name,exists:false};
+}
