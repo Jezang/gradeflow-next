@@ -8,7 +8,7 @@ const same=(actual:Record<string,unknown>,expected:Fields)=>Object.entries(expec
 async function list(db:Firestore,...path:[string,...string[]]){
  const s=await getDocsFromServer(query(collection(db,...path),limit(501)));
  if(s.size>500)throw Error('ข้อมูลเกินขอบเขตตรวจสอบ 500 รายการ');
- return s.docs.map(d=>({id:d.id,...d.data(),data:d.data()}));
+ return s.docs.map(d=>({id:d.id,data:d.data()}));
 }
 async function owner(db:Firestore,uid:string){
  const p=await getDocFromServer(doc(db,'profiles',uid));
