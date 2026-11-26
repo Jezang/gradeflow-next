@@ -28,7 +28,7 @@ export default function SmartMigrationPlan({prepared,disabled}:{prepared:ReturnT
   <p role="status">{status}</p>
   {registry&&<><p>ตรงกันและเปิดใช้งาน {registry.matched} / {plan.studentCount} คน · ไม่พบรหัส {registry.missing} · ชื่อไม่ตรง {registry.nameMismatch} · ไม่เปิดใช้งาน {registry.inactive}</p>{registry.matched!==plan.studentCount&&<p role="alert">ยังไม่ควรสร้างรายการมอบหมาย จนกว่าจะแก้ไขข้อแตกต่าง</p>}</>}
   <h3>กลุ่มที่เสนอ</h3>
-  {plan.groups.map(g=><div className="rank" key={g.key}><div><strong>ม.{g.level.replace(/^ม\.?\s*/,'')} / {g.room} · {g.subject}</strong><small>ข้อมูลชั้นตามต้นฉบับ: {g.level}</small></div><strong>{g.students.length} คน</strong></div>)}
+  {plan.groups.map(g=><div className="rank" key={g.key}><div><strong>ชั้น {g.level} / ห้อง {g.room} · {g.subject}</strong></div><strong>{g.students.length} คน</strong></div>)}
   {plan.incomplete.length>0&&<p role="alert">มี {plan.incomplete.length} คนที่ชั้น ห้อง หรือวิชาไม่ครบ — ยังไม่รวมในแผน</p>}
   <h3>ตรวจการจับคู่งานเดิม</h3>
   {plan.assignments.map(a=><div className="rank" key={a.id}><div><strong>{a.title}</strong><small>{a.level||'ไม่ระบุชั้น'} · {a.room||'ไม่ระบุห้อง'} · {a.subject||'ไม่ระบุวิชา'} · {a.records} รายการ</small></div><small>{a.status==='matched'?'ตรงกลุ่ม':a.status==='review-records'?'ต้องตรวจรายการนอกกลุ่ม '+a.outside:'ต้องระบุขอบเขต · ตัวเลือก '+a.candidateCount}</small></div>)}
