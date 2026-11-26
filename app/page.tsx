@@ -38,7 +38,7 @@ export default function Home() {
    </section>
    <section className="panel home-start"><div><small>LET'S GET STARTED</small><h2>เริ่มต้นใช้งานในห้องเรียนของคุณ</h2><p>เข้าสู่ระบบด้วยบัญชีที่ได้รับอนุมัติ หรือลงทะเบียนเพื่อส่งคำขอเป็นครู</p></div><div className="home-actions"><Link className="primary" href="/register">ลงทะเบียนครู</Link><Link className="home-secondary" href="/demo">ดู Dashboard ตัวอย่าง</Link></div></section>
    <p className="home-notice"><strong>Release Candidate</strong> · ใช้ข้อมูลจำลองสำหรับตรวจรับก่อนนำข้อมูลนักเรียนจริงเข้า ระบบกู้คืนคะแนนจริงยังไม่เปิดใช้</p>
-   <footer>GradeFlow Next · {RELEASE_LABEL} · {EDITION}</footer>
+   <footer>GradeFlow Next · {RELEASE_LABEL} · {EDITION}<div style={{marginTop:8}}><Link href="/privacy">นโยบายความเป็นส่วนตัว</Link> · <Link href="/terms">ข้อกำหนดการใช้งาน</Link></div></footer>
   </main>
  </div>;
 }
