@@ -57,3 +57,46 @@ export function matchLegacy(a:LegacyAssignment,students:ReturnType<typeof prepar
  if(!selected.length)problems.push('ไม่มีรายชื่อนักเรียนที่ตรงกัน');
  const ids=new Set(selected.map(s=>s.code));return {problems,students:selected.map(s=>known.get(s.code)!),records:a.records.filter(s=>ids.has(s.studentId)),outside:a.records.filter(s=>!ids.has(s.studentId)).length};
 }
+
+
+// Read-only planning: preserve exact source group boundaries and never infer a term,
+// teacher, or assignment destination from the student name or the current date.
+type PreparedLegacy=ReturnType<typeof prepareLegacy>;
+export type LegacyGroup={key:string;level:string;room:string;subject:string;students:PreparedLegacy['roster']};
+export function planLegacyGroups(prepared:PreparedLegacy){
+ const groups=new Map<string,LegacyGroup>();
+ const incomplete:PreparedLegacy['roster']=[];
+ for(const student of prepared.roster){
+  const {level,room,subject}=student;
+  if(!level||!room||!subject){incomplete.push(student);continue}
+  const key=JSON.stringify([level,room,subject]);
+  let group=groups.get(key);
+  if(!group){group={key,level,room,subject,students:[]};groups.set(key,group)}
+  group.students.push(student);
+ }
+ const ordered=[...groups.values()].sort((a,b)=>a.key.localeCompare(b.key,'th'));
+ const rooms=new Set(ordered.map(g=>JSON.stringify([g.level,g.room])));
+ const subjects=new Set(ordered.map(g=>g.subject));
+ const assignments=prepared.work.map(work=>{
+  const candidates=ordered.filter(g=>(!work.level||g.level===work.level)&&(!work.room||g.room===work.room)&&(!work.subject||g.subject===work.subject));
+  // Blank source scope is not sufficient evidence for automatic assignment.
+  const group=work.level&&work.room&&work.subject&&candidates.length===1?candidates[0]:null;
+  const ids=new Set(group?.students.map(s=>s.code)||[]);
+  const outside=work.records.filter(r=>!ids.has(r.studentId)).length;
+  const status=!group?'review-scope':outside?'review-records':'matched';
+  return {id:work.id,title:work.title,level:work.level,room:work.room,subject:work.subject,records:work.records.length,outside:group?outside:null,candidateCount:candidates.length,groupKey:status==='matched'?group!.key:null,status};
+ });
+ return {groups:ordered,rooms:rooms.size,subjects:subjects.size,studentCount:prepared.roster.length,incomplete,assignments};
+}
+export function checkLegacyRegistry(roster:PreparedLegacy['roster'],current:{code:string;name:unknown;active:unknown}[]){
+ const byCode=new Map(current.map(s=>[s.code,s]));
+ const result={matched:0,missing:0,nameMismatch:0,inactive:0};
+ for(const student of roster){
+  const found=byCode.get(student.code);
+  if(!found)result.missing++;
+  else if(found.name!==student.name)result.nameMismatch++;
+  else if(found.active!==true)result.inactive++;
+  else result.matched++;
+ }
+ return result;
+}
