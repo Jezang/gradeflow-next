@@ -50,3 +50,12 @@
  .auth-register .sakura-art{padding-bottom:65px}
  .auth-register .auth-steps{width:100%;max-width:350px;margin:8px 0}
 }
+
+/* Keep registration steps clear of the scenic mascot. */
+@media(min-width:741px){
+ .sakura-login .sakura-art{background-position:right bottom}
+}
+@media(max-width:740px){
+ .sakura-login.auth-register .sakura-art{padding-bottom:clamp(145px,47vw,236px);background-size:100% auto;background-position:center bottom;background-color:#fff8f2}
+ .sakura-login.auth-register .sakura-art:before{background:linear-gradient(180deg,#fff8f2 0%,#fff8f2 25%,#fff8f2b0 42%,transparent 68%)}
+}
