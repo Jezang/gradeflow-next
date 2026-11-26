@@ -100,3 +100,39 @@ export function checkLegacyRegistry(roster:PreparedLegacy['roster'],current:{cod
  }
  return result;
 }
+
+// Explicit, owner-confirmed term-2 English mapping. Do not apply to other subjects,
+// or reinterpret a missing scope as an assignment to every student.
+export function planEnglishTerm2(prepared:PreparedLegacy){
+ const aliases=new Map<string,string>([
+  ['ภาษาอังกฤษ 3','ภาษาอังกฤษ 4'],['ถาษาอังกฤษ 3','ภาษาอังกฤษ 4'],['ภาษาอังกฤษ 4','ภาษาอังกฤษ 4'],
+  ['ภาษาอังกฤษ 5','ภาษาอังกฤษ 6'],['ภาษาอังกฤษ 6','ภาษาอังกฤษ 6']
+ ]);
+ const groups=new Map<string,LegacyGroup>();
+ const studentGroup=new Map<string,LegacyGroup>();
+ const unresolved:PreparedLegacy['roster']=[];
+ for(const s of prepared.roster){
+  const subject=aliases.get(s.subject);
+  const expected=s.level==='2'?'ภาษาอังกฤษ 4':s.level==='3'?'ภาษาอังกฤษ 6':null;
+  if(!s.room||!subject||subject!==expected){unresolved.push(s);continue}
+  const key=JSON.stringify([s.level,s.room,subject]);
+  let g=groups.get(key);
+  if(!g){g={key,level:s.level,room:s.room,subject,students:[]};groups.set(key,g)}
+  g.students.push(s);studentGroup.set(s.code,g);
+ }
+ const assignments=prepared.work.map(work=>{
+  const partitions=new Map<string,{groupKey:string;level:string;room:string;subject:string;records:LegacyRecord[]}>();
+  const unresolvedRecords:LegacyRecord[]=[];
+  const allowedSubject=(!work.subject||['อังกฤษ','ภาษาอังกฤษ'].includes(work.subject))?null:aliases.get(work.subject);
+  const unknownSubject=!!work.subject&&!['อังกฤษ','ภาษาอังกฤษ'].includes(work.subject)&&!allowedSubject;
+  for(const record of work.records){
+   const g=studentGroup.get(record.studentId);
+   if(!g||unknownSubject||(work.level&&work.level!==g.level)||(work.room&&work.room!==g.room)||(allowedSubject&&allowedSubject!==g.subject)){unresolvedRecords.push(record);continue}
+   let p=partitions.get(g.key);
+   if(!p){p={groupKey:g.key,level:g.level,room:g.room,subject:g.subject,records:[]};partitions.set(g.key,p)}
+   p.records.push(record);
+  }
+  return {work,partitions:[...partitions.values()].sort((a,b)=>a.groupKey.localeCompare(b.groupKey)),unresolvedRecords,scopeNeedsReview:!work.level||!work.room||!allowedSubject||unknownSubject||work.records.length===0};
+ });
+ return {year:2569,term:2,groups:[...groups.values()].sort((a,b)=>a.key.localeCompare(b.key)),unresolved,assignments,studentCount:prepared.roster.length,recordCount:prepared.work.reduce((n,w)=>n+w.records.length,0)};
+}
