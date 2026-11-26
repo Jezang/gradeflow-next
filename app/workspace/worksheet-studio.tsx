@@ -2,7 +2,19 @@
 import {useEffect,useRef,useState,type PointerEvent} from 'react';
 import {codeBox,type Placement} from '../../lib/worksheet-placement';
 import {inspectWord,stampWord} from '../../lib/worksheet-word';
-type Label={code:string;name:string;barcode:string;qr:string};
+type Label={code:string;name:string;barcode:string;qr:string;room:string;no:string};
+type Fields={name:boolean;room:boolean;no:boolean};
+async function composeCode(label:Label,kind:'qr'|'barcode',fields:Fields){
+ const url=label[kind];if(!fields.name&&!fields.room&&!fields.no)return url;
+ const img=new Image();img.src=url;await img.decode();await document.fonts.ready;
+ const canvas=document.createElement('canvas'),ctx=canvas.getContext('2d');if(!ctx)throw Error('สร้างป้ายไม่ได้');
+ const lines=[fields.name?label.name:'',[fields.room?(label.room||'ไม่ระบุห้อง'):'',fields.no?'เลขที่ '+(label.no||'—'):''].filter(Boolean).join(' · ')].filter(Boolean);
+ canvas.width=Math.max(1000,img.naturalWidth*2);const codeWidth=kind==='qr'?Math.min(canvas.width*.62,img.naturalWidth*3):canvas.width-72;
+ const codeHeight=codeWidth*img.naturalHeight/img.naturalWidth;
+ canvas.height=Math.ceil(codeHeight+48+lines.length*90);ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.imageSmoothingEnabled=false;ctx.drawImage(img,(canvas.width-codeWidth)/2,16,codeWidth,codeHeight);ctx.fillStyle='#111';ctx.textAlign='center';ctx.textBaseline='middle';
+ lines.forEach((line,i)=>{ctx.font=(i===0&&fields.name?'600 ':'400 ')+'58px "Noto Sans Thai", Tahoma, Arial, sans-serif';const measured=ctx.measureText(line).width;if(measured>canvas.width-60)ctx.font=(i===0&&fields.name?'600 ':'400 ')+Math.floor(58*(canvas.width-60)/measured)+'px "Noto Sans Thai", Tahoma, Arial, sans-serif';ctx.fillText(line,canvas.width/2,codeHeight+55+i*90)});
+ return canvas.toDataURL('image/png');
+}
 type Source={kind:'pdf'|'word';name:string;bytes:ArrayBuffer;pages:number};
 type Preview={url:string;width:number;height:number};
 function download(bytes:Uint8Array,name:string,type:string){
@@ -15,8 +27,10 @@ export default function WorksheetStudio({labels}:{labels:Label[]}){
  const [source,setSource]=useState<Source|null>(null),[preview,setPreview]=useState<Preview|null>(null),[page,setPage]=useState(1),[all,setAll]=useState(false),[kind,setKind]=useState<'qr'|'barcode'>('qr');
  const [placement,setPlacement]=useState<Placement>({x:.72,y:.04,width:.20}),[inches,setInches]=useState(1.25),[aspect,setAspect]=useState(1),[busy,setBusy]=useState(false),[status,setStatus]=useState('');
  const lock=useRef(false),surface=useRef<HTMLDivElement>(null),drag=useRef<{dx:number;dy:number}|null>(null);
- const example=labels[0]?.[kind];
- useEffect(()=>{let active=true;setAspect(1);if(example)void aspectOf(example).then(a=>{if(active)setAspect(a)}).catch(()=>{});return()=>{active=false}},[example]);
+ const [fields,setFields]=useState<Fields>({name:false,room:false,no:false}),[sample,setSample]=useState<{key:string;url:string;aspect:number}|null>(null);
+ const first=labels[0],sampleKey=first?JSON.stringify([first.code,first.name,first.room,first.no,kind,fields]):'';
+ const example=sample?.key===sampleKey?sample.url:undefined;
+ useEffect(()=>{let active=true;setSample(null);if(first)void composeCode(first,kind,fields).then(async url=>({url,aspect:await aspectOf(url)})).then(x=>{if(active){setSample({key:sampleKey,...x});setAspect(x.aspect)}}).catch(()=>{if(active)setStatus('สร้างตัวอย่างป้ายไม่ได้')});return()=>{active=false}},[sampleKey]);
  useEffect(()=>{
   setPreview(null);
   if(source?.kind!=='pdf')return;
@@ -67,7 +81,7 @@ export default function WorksheetStudio({labels}:{labels:Label[]}){
   setPlacement(p=>({...p,x:Math.max(0,Math.min(1,(e.clientX-r.left-drag.current!.dx)/r.width)),y:Math.max(0,Math.min(1,(e.clientY-r.top-drag.current!.dy)/r.height))}));
  }
  async function generate(){
-  if(lock.current||!source||!labels.length||labels.length>60||(source.kind==='pdf'&&(!preview||source.pages*labels.length>300)))return;
+  if(lock.current||!source||!example||!labels.length||labels.length>60||(source.kind==='pdf'&&(!preview||source.pages*labels.length>300)))return;
   const approved=window.confirm('สร้างสำเนาใบงาน '+labels.length+' คน? ตรวจตำแหน่งโค้ดไม่ให้ทับเนื้อหา และทดลองพิมพ์/สแกนก่อนแจก');
   if(!approved)return;
   lock.current=true;setBusy(true);
@@ -76,7 +90,7 @@ export default function WorksheetStudio({labels}:{labels:Label[]}){
    if(source.kind==='pdf'){
     const {PDFDocument}=await import('pdf-lib');const input=await PDFDocument.load(source.bytes),output=await PDFDocument.create();
     for(let i=0;i<selected.length;i++){
-     const png=await output.embedPng(selected[i][kind]);
+     const png=await output.embedPng(await composeCode(selected[i],kind,fields));
      const pages=await output.copyPages(input,input.getPageIndices());
      pages.forEach((p,index)=>{if(all||index===page-1){const {width,height}=p.getSize(),box=codeBox(width,height,png.width/png.height,placement);p.drawImage(png,{x:box.left,y:box.y,width:box.width,height:box.height})}output.addPage(p)});
      setStatus('สร้างใบงาน '+(i+1)+' / '+selected.length);
@@ -85,7 +99,7 @@ export default function WorksheetStudio({labels}:{labels:Label[]}){
    }else{
     const {default:JSZip}=await import('jszip');const zip=new JSZip();
     for(let i=0;i<selected.length;i++){
-     const s=selected[i],url=s[kind];zip.file(prefix+'-'+s.code+'.docx',await stampWord(source.bytes,url,inches,await aspectOf(url)));setStatus('สร้างใบงาน '+(i+1)+' / '+selected.length);
+     const s=selected[i],url=await composeCode(s,kind,fields);zip.file(prefix+'-'+s.code+'.docx',await stampWord(source.bytes,url,inches,await aspectOf(url)));setStatus('สร้างใบงาน '+(i+1)+' / '+selected.length);
     }
     download(await zip.generateAsync({type:'uint8array'}),prefix+'-gradeflow.zip','application/zip');
    }
@@ -99,11 +113,12 @@ export default function WorksheetStudio({labels}:{labels:Label[]}){
  <label>ไฟล์ใบงาน PDF หรือ Word (.docx)<input type="file" accept=".pdf,.docx" disabled={busy} onChange={e=>{const f=e.target.files?.[0];e.target.value='';if(f)void load(f)}}/></label>
  <small>Word: พิมพ์ข้อความ &#123;&#123;BARCODE&#125;&#125; เพียงหนึ่งย่อหน้าตรงจุดที่ต้องการ แล้วบันทึก DOCX ก่อนเลือกไฟล์ ถ้าต้องการลากบนหน้าเอกสารให้ส่งออก PDF ก่อน</small>
  <label>ชนิดโค้ด<select value={kind} disabled={busy} onChange={e=>setKind(e.target.value as 'qr'|'barcode')}><option value="qr">QR Code</option><option value="barcode">CODE128</option></select></label>
+ <fieldset className="worksheet-fields"><legend>ข้อมูลบนใบงาน (เลือกได้)</legend>{([['name','ชื่อ–นามสกุล'],['room','ชั้น / ห้อง'],['no','เลขที่']] as const).map(([key,label])=><label className="worksheet-check" key={key}><input type="checkbox" disabled={busy} checked={fields[key]} onChange={e=>setFields(old=>({...old,[key]:e.target.checked}))}/> {label}</label>)}<small>ข้อมูลจะอยู่ใต้โค้ดทั้ง PDF และ Word · เลขที่ที่ไม่ยืนยันจะแสดง — · ปรับขนาดให้ชื่ออ่านง่ายและทดสอบสแกนก่อนแจก</small></fieldset>
  {source?.kind==='pdf'&&<><label>หน้าตัวอย่าง<select value={page} disabled={busy} onChange={e=>setPage(Number(e.target.value))}>{Array.from({length:source.pages},(_,i)=><option key={i} value={i+1}>หน้า {i+1}</option>)}</select></label>
  <label className="worksheet-check"><input type="checkbox" checked={all} disabled={busy} onChange={e=>setAll(e.target.checked)}/> แทรกทุกหน้า (ตำแหน่งสัมพัทธ์เดียวกัน)</label>
  {([['x','ตำแหน่งแนวนอน',0,100],['y','ตำแหน่งแนวตั้ง',0,100],['width','ขนาดเทียบความกว้างหน้า',8,45]] as const).map(([key,label,min,max])=><label key={key}>{label} · {Math.round(placement[key]*100)}%<input type="range" min={min} max={max} value={Math.round(placement[key]*100)} disabled={busy} onChange={e=>setPlacement(p=>({...p,[key]:Number(e.target.value)/100}))}/></label>)}</>}
  {source?.kind==='word'&&<label>ความกว้างโค้ด {inches} นิ้ว<input type="range" min=".5" max="3.5" step=".25" value={inches} disabled={busy} onChange={e=>setInches(Number(e.target.value))}/></label>}
- <button type="button" className="primary" disabled={busy||!source||!labels.length||labels.length>60||(source.kind==='pdf'&&(!preview||source.pages*labels.length>300))} onClick={()=>void generate()}>{source?.kind==='word'?'สร้าง Word รายคน (ZIP)':'สร้าง PDF พร้อมพิมพ์'}</button>
+ <button type="button" className="primary" disabled={busy||!source||!example||!labels.length||labels.length>60||(source.kind==='pdf'&&(!preview||source.pages*labels.length>300))} onClick={()=>void generate()}>{source?.kind==='word'?'สร้าง Word รายคน (ZIP)':'สร้าง PDF พร้อมพิมพ์'}</button>
  <small>สูงสุด 60 คน / ครั้ง · PDF รวมไม่เกิน 300 หน้า · ไม่เขียนทับต้นฉบับ</small>
  <p role="status" aria-live="polite">{status}</p>
  </div><div className="worksheet-preview">

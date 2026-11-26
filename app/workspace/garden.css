@@ -424,3 +424,10 @@
  .modern-label-grid .label-course,.modern-label-grid .label-meta{display:flex;justify-content:space-between;gap:5px;width:100%;font-size:10px;color:black!important}
  .modern-label-grid .student-label img{max-width:100%;background:white}
 }
+
+@media screen{
+ .teacher-hub .worksheet-fields{display:grid;gap:8px;min-width:0;border:1px solid var(--garden-border);border-radius:10px;padding:10px;margin:0}
+ .teacher-hub .worksheet-fields legend{font-weight:650;color:var(--garden-ink)}
+ .teacher-hub .advisor-sheet-new{display:grid;gap:8px;padding:12px;border:1px solid var(--garden-border);border-radius:10px;background:var(--garden-card)}
+ .teacher-hub .advisor-sheet-link>.checking-tools{margin:0}
+}
