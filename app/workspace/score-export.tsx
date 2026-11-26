@@ -1,10 +1,10 @@
 'use client';
 
-import {useEffect, useRef, useState} from 'react';
+import {useLayoutEffect, useRef, useState} from 'react';
 import {gradebookCsvPreview} from '../../lib/gradebook-csv-preview';
 import {scoreExportXlsx} from '../../lib/score-export-xlsx';
 import {
-  previewSheetsMapping, scoreExportColumns, scoreExportTable,
+  previewSheetsMapping, scoreExportColumns, scoreExportTable, scoreExportSnapshotKey,
   type ExportScope, type ScoreExportRow, type SheetsMapping,
 } from '../../lib/score-export';
 
@@ -16,12 +16,20 @@ const mappingMessages = {
   fields: 'เลือกข้อมูลที่จะส่งออกเพิ่มอย่างน้อยหนึ่งคอลัมน์',
 };
 
-export default function ScoreExport({
-  scope, students,
-}: {
+type ScoreExportProps = {
   scope: ExportScope;
   students: readonly ScoreExportRow[];
-}) {
+};
+
+export default function ScoreExport({scope, students}: ScoreExportProps) {
+  const snapshotKey = scoreExportSnapshotKey(scope, students);
+  return <div>
+    <p>หากข้อมูลคะแนน รายชื่อ หรือรายวิชาเปลี่ยน ระบบจะให้ตรวจสอบและอนุมัติตัวอย่างใหม่ก่อนดาวน์โหลด</p>
+    <ReviewedScoreExport key={snapshotKey ?? 'invalid'} scope={scope} students={students}/>
+  </div>;
+}
+
+function ReviewedScoreExport({scope, students}: ScoreExportProps) {
   const [table, setTable] = useState<ReturnType<typeof scoreExportTable> | null>(null);
   const [approved, setApproved] = useState(false);
   const [status, setStatus] = useState('');
@@ -30,7 +38,8 @@ export default function ScoreExport({
   const [mapping, setMapping] = useState<SheetsMapping>({});
   const lock = useRef(false);
   const revision = useRef(0);
-  useEffect(() => () => {revision.current++}, []);
+  // Invalidate an in-flight XLSX download as soon as the reviewed snapshot is replaced.
+  useLayoutEffect(() => () => {revision.current++}, []);
   const destination = previewSheetsMapping(sheet, mapping);
 
   function openPreview() {
