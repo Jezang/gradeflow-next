@@ -1,12 +1,22 @@
 'use client';
 import {useRef,useState} from 'react';
 import {firebaseServices} from '../../lib/firebase';
-import {previewTerm2ArchiveBatch,archiveTerm2Batch,promoteTerm2Batch,type Term2ArchiveBatch} from '../../lib/term2-archive';
+import {previewTerm2ArchiveBatch,archiveTerm2Batch,promoteTerm2Batch,auditTerm2Migration,type Term2ArchiveBatch} from '../../lib/term2-archive';
 import type {prepareLegacy} from '../../lib/migration';
 
 export default function Term2ArchivePanel({uid,prepared,disabled,onBusy}:{uid:string;prepared:ReturnType<typeof prepareLegacy>;disabled:boolean;onBusy:(busy:boolean)=>void}){
  const [batch,setBatch]=useState<Term2ArchiveBatch|null>(null),[status,setStatus]=useState(''),[selected,setSelected]=useState<string[]>([]),[busy,setBusy]=useState(false);
+ const [audit,setAudit]=useState<Awaited<ReturnType<typeof auditTerm2Migration>>|null>(null);
  const lock=useRef(false);
+ async function verify(){
+  if(lock.current||busy||disabled)return;
+  lock.current=true;setBusy(true);onBusy(true);setAudit(null);setStatus('กำลังตรวจรับจากเซิร์ฟเวอร์ (อ่านอย่างเดียว)…');
+  try{
+   const result=await auditTerm2Migration(firebaseServices().db,uid,prepared,setStatus);
+   setAudit(result);setStatus('ตรวจรับแล้ว ไม่ได้เขียนหรือแก้ไขข้อมูล');
+  }catch(e){setStatus('ตรวจรับไม่สำเร็จ: '+(e instanceof Error?e.message:'เกิดข้อผิดพลาด')+' · ไม่มีการแก้ไขข้อมูล')}
+  finally{lock.current=false;setBusy(false);onBusy(false)}
+ }
  const complete=!!batch&&batch.targets.every(x=>x.complete);
  const chosen=batch?.targets.filter(x=>selected.includes(x.item.key))||[];
  function accept(next:Term2ArchiveBatch){
@@ -18,7 +28,7 @@ export default function Term2ArchivePanel({uid,prepared,disabled,onBusy}:{uid:st
   if(action!=='preview'&&!batch)return;
   if(action==='archive'&&!window.confirm('เก็บสำเนางานและบันทึกเดิมทั้งหมดใน Firebase สำหรับเจ้าของระบบเท่านั้น? ไม่เปลี่ยนคะแนนปัจจุบัน'))return;
   if(action==='promote'&&(!complete||!chosen.length||!window.confirm('เปิดงานที่เลือกให้ครอบคลุมนักเรียนทั้งห้อง? นักเรียนที่ไม่มีบันทึกเดิมจะยังไม่มีคะแนน และระบบจะนับงานนี้ในภาระงานของทั้งห้อง')))return;
-  lock.current=true;setBusy(true);onBusy(true);
+  lock.current=true;setBusy(true);onBusy(true);setAudit(null);
   setStatus('กำลังตรวจข้อมูลจากเซิร์ฟเวอร์…');
   try{
    const {db}=firebaseServices();
@@ -55,6 +65,26 @@ export default function Term2ArchivePanel({uid,prepared,disabled,onBusy}:{uid:st
     <p>เก็บสำเนาครบแล้ว · เลือกเปิดใช้ {chosen.length} กลุ่มงาน · {chosen.reduce((n,x)=>n+x.item.recordCount,0)} บันทึก ส่วนที่ไม่ได้เลือกยังคงอยู่ในสำเนาประวัติ</p>
     <button type="button" className="primary" disabled={busy||disabled||!chosen.length} onClick={()=>void perform('promote')}>ยืนยันนำงานและคะแนนที่เลือกเข้าสู่ระบบตรวจงาน</button>
    </>}
+  </>}
+  <h3>ตรวจรับหลังย้ายข้อมูล (อ่านอย่างเดียว)</h3>
+  <p>เทียบไฟล์ต้นฉบับกับสำเนาประวัติและรายการคะแนนที่นำเข้า ตรวจเฉพาะงานเดิมที่จับคู่ได้ ไม่รวมงานใหม่ทั้งหมด และไม่ใช่ภาพถ่ายฐานข้อมูล ณ เวลาเดียวกัน ควรหยุดแก้คะแนนระหว่างตรวจ</p>
+  <button type="button" disabled={busy||disabled} onClick={()=>void verify()}>ตรวจรับทุกห้องและคะแนนเดิม</button>
+  {audit&&<>
+   <p>ตรวจเมื่อ {new Date(audit.checkedAt).toLocaleString('th-TH')} · {audit.studentCount} นักเรียน · {audit.workCount} งานต้นฉบับ · {audit.recordCount} บันทึก</p>
+   <div className="stats">{[
+    ['สำเนาที่ตรวจครบ',audit.totals.archived],
+    ['บันทึกเดิมในงานเปิดใช้',audit.totals.activeExpected],
+    ['คะแนนและสถานะตรงต้นฉบับ',audit.totals.activeExact],
+    ['คะแนนหรือสถานะต่าง (ประวัติเดิมตรง)',audit.totals.activeChanged],
+    ['บันทึกหายในงานเปิดใช้',audit.totals.activeMissing],
+    ['ประวัติเดิมไม่ตรง',audit.totals.activeLegacyMismatch],
+    ['บันทึกเพิ่มในงานเปิดใช้',audit.totals.activeAdditional],
+    ['เฉพาะสำเนา (ยังไม่เปิดใช้)',audit.totals.archiveOnly],
+    ['งานค้าง/ปิด/ผิดปกติ',audit.totals.other]
+   ].map(([label,value])=><div className="tile" key={label}><small>{label}</small><strong>{value}</strong></div>)}</div>
+   {audit.totals.archived!==audit.recordCount||audit.totals.activeMissing>0||audit.totals.activeLegacyMismatch>0||audit.totals.other>0?<p role="alert">พบรายการที่ต้องตรวจสอบ ไม่แก้ไขอัตโนมัติ</p>:<p>สำเนาประวัติครบ และไม่พบบันทึกเดิมหายหรือประวัติเดิมไม่ตรงในงานที่เปิดใช้</p>}
+   <p>คะแนนต่างอาจเป็นการแก้ไขหลังนำเข้า ไม่ใช่ข้อผิดพลาดเสมอไป · รายการเฉพาะสำเนาไม่ใช่งานเปิดใช้</p>
+   {audit.details.map(x=><div className="rank" key={x.key}><div><strong>{x.room} · {x.title}</strong><small>{x.state==='active'?'เปิดใช้':x.state==='archiveOnly'?'เฉพาะสำเนา':x.state==='pending'?'นำเข้าค้าง':x.state==='inactive'?'ปิดใช้งาน':'ข้อมูลไม่ตรง'} · สำเนา{x.archiveComplete?'ครบ':'ไม่ครบ'} · {x.recordCount} บันทึกเดิม</small><small>ตรง {x.counts.exact} · ต่าง {x.counts.changed} · ไม่มีในตาราง {x.counts.missing} · ประวัติไม่ตรง {x.counts.legacyMismatch} · เพิ่ม {x.counts.additional}</small></div></div>)}
   </>}
   <p role="status" aria-live="polite">{status}</p>
  </section>
