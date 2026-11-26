@@ -33,3 +33,11 @@ test('Sheets mapping requires explicit unique columns and a stable ID column', (
   assert.deepEqual(previewSheetsMapping('Demo', {studentId: 'A'}), {ok: false, reason: 'fields'});
   assert.deepEqual(previewSheetsMapping('', {studentId: 'A', points: 'B'}), {ok: false, reason: 'sheet'});
 });
+
+test('score export rejects ambiguous IDs without silently rewriting them', () => {
+  for (const studentId of [' 001', '001 ', '00\t1', '00\n1', '00\u007f1']) {
+    assert.throws(() => scoreExportTable(scope, [{...student, studentId}]), /invalid student IDs/);
+  }
+  assert.throws(() => scoreExportTable(scope, [student, {...student, studentId: '001 '}]), /invalid student IDs/);
+  assert.equal(scoreExportTable(scope, [student])[5][0], '001');
+});
