@@ -1,4 +1,4 @@
-import {planSheetGradeSync} from '../lib/sheet-grade-sync.ts';
+import {planSheetGradeSync,sheetScoreColumns,proposeSheetMatches} from '../lib/sheet-grade-sync.ts';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {gradebookCsvPreview} from '../lib/gradebook-csv-preview.ts';
@@ -85,4 +85,13 @@ test('sheet sync preview preserves zero and decimal scores and never silently ov
  assert.throws(()=>planSheetGradeSync({...base,direction:'import',sheetMax:5}));
  assert.throws(()=>planSheetGradeSync({...base,direction:'import',matches:matches.slice(1)}));
  assert.throws(()=>planSheetGradeSync({...base,direction:'import',sheet:[{...sheet[0],name:'Different'},...sheet.slice(1)]}));
+});
+
+test('four-row sheet headers preserve nested labels, fractions and exclude totals',()=>{
+ const h=[['ที่','ชื่อ',null,'กลางภาค',null,null,null,'ปลายภาค'],[null,null,null,'บทที่ 6',null,null,'รวม','Test'],[null,null,null,'หนังสือ','ใบงาน','รวม',null,'ครั้งที่ 1'],[null,null,null,3,2,5,10,2.5]];
+ assert.deepEqual(sheetScoreColumns(h,[6,7]).map(x=>[x.column,x.label,x.maxScore]),[[4,'กลางภาค · บทที่ 6 · หนังสือ',3],[5,'กลางภาค · บทที่ 6 · ใบงาน',2],[8,'ปลายภาค · Test · ครั้งที่ 1',2.5]]);
+ const web=[{studentId:'001',name:'A B'},{studentId:'002',name:'C'}];
+ assert.deepEqual(proposeSheetMatches(web,[{row:5,name:'C'},{row:6,name:'A  B'}]).map(x=>x.row),[6,5]);
+ assert.throws(()=>proposeSheetMatches(web,[{row:5,name:'C'},{row:6,name:'C'}]));
+ assert.throws(()=>proposeSheetMatches(web,[{row:5,name:'C'}]));
 });
