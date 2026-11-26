@@ -1,0 +1,84 @@
+'use client';
+import {useRef,useState} from 'react';
+import type {Workbook,Worksheet} from 'exceljs';
+import type {advisorPreview} from '../../lib/advisor-preview';
+import {planSheetGradeSync,proposeSheetMatches,sheetScoreColumns,type SyncDirection,type SheetGrade,type SheetColumn} from '../../lib/sheet-grade-sync';
+type Report=ReturnType<typeof advisorPreview>;
+type Snapshot={name:string;columns:SheetColumn[];rows:{row:number;name:string}[];sheet:Worksheet};
+const hasFormula=(value:unknown)=>!!value&&typeof value==='object'&&('formula' in value||'sharedFormula' in value);
+function readTab(sheet:Worksheet):Snapshot{
+ if(sheet.rowCount>2000||sheet.columnCount>100)throw Error('ไฟล์เกินขอบเขต 2,000 แถว / 100 คอลัมน์');
+ const headers=Array.from({length:4},(_,r)=>Array.from({length:sheet.columnCount},(_,c)=>{
+  const value=sheet.getCell(r+1,c+1).value;
+  return typeof value==='string'||typeof value==='number'?value:null;
+ }));
+ const rows:{row:number;name:string}[]=[];
+ const blocked=new Set<number>();
+ for(let c=4;c<=sheet.columnCount;c++)if(hasFormula(sheet.getCell(4,c).value))blocked.add(c);
+ for(let r=5;r<=sheet.rowCount;r++){
+  const number=sheet.getCell(r,1).value,name=sheet.getCell(r,2).value;
+  if((number===null||number==='')&&(name===null||name===''))continue;
+  if(typeof name!=='string'||!name.trim()||!/^\d+$/.test(String(number??'').trim()))throw Error('พบแถวที่ไม่ใช่รายชื่อนักเรียนที่แถว '+r+' กรุณาใช้สำเนาที่มีเฉพาะตารางคะแนน');
+  rows.push({row:r,name});
+  for(let c=4;c<=sheet.columnCount;c++)if(hasFormula(sheet.getCell(r,c).value))blocked.add(c);
+ }
+ if(!rows.length||rows.length>500)throw Error('ต้องมีรายชื่อนักเรียน 1–500 คน');
+ return {name:sheet.name,rows,columns:sheetScoreColumns(headers,[...blocked]),sheet};
+}
+function letter(n:number){let out='';while(n){n--;out=String.fromCharCode(65+n%26)+out;n=Math.floor(n/26)}return out}
+const stateLabel={protected:'สูตร (ไม่แก้ไข)',invalid:'ข้อมูลไม่ถูกต้อง',same:'ตรงกัน',conflict:'คะแนนต่างกัน ต้องตรวจสอบ',reviewImport:'เสนอให้นำเข้า',reviewExport:'เสนอให้ส่งออก',skip:'ข้าม'};
+export default function SheetSyncPreview({report}:{report:Report}){
+ const [book,setBook]=useState<Workbook|null>(null),[tabs,setTabs]=useState<string[]>([]),[snapshot,setSnapshot]=useState<Snapshot|null>(null),[fileName,setFileName]=useState(''),[busy,setBusy]=useState(false),[status,setStatus]=useState('');
+ const [work,setWork]=useState(''),[column,setColumn]=useState(''),[direction,setDirection]=useState<SyncDirection>('import'),[confirmed,setConfirmed]=useState(false),[plan,setPlan]=useState<ReturnType<typeof planSheetGradeSync>|null>(null);
+ const lock=useRef(false);
+ function reset(){setPlan(null);setConfirmed(false)}
+ async function load(file:File){
+  if(lock.current)return;
+  lock.current=true;setBusy(true);setBook(null);setSnapshot(null);setTabs([]);setFileName('');reset();setWork('');setColumn('');setStatus('กำลังอ่านไฟล์บนอุปกรณ์');
+  try{
+   if(!/\.xlsx$/i.test(file.name)||file.size>8*1024*1024)throw Error('รองรับไฟล์ XLSX ไม่เกิน 8 MB');
+   const {Workbook}=await import('exceljs');
+   const wb=new Workbook();await wb.xlsx.load(await file.arrayBuffer());
+   const names=wb.worksheets.filter(s=>s.state==='visible').map(s=>s.name);
+   if(!names.length)throw Error('ไม่พบแท็บที่แสดงอยู่');
+   setBook(wb);setTabs(names);setFileName(file.name);setStatus('เลือกแท็บที่จะตรวจสอบ');
+  }catch(e){setStatus(e instanceof Error?e.message:'อ่านไฟล์ไม่ได้')}
+  finally{lock.current=false;setBusy(false)}
+ }
+ function chooseTab(name:string){
+  setSnapshot(null);setColumn('');reset();setStatus('');
+  if(!name||!book)return;
+  try{const s=book.getWorksheet(name);if(!s||s.state!=='visible')throw Error('ไม่พบแท็บ');
+   const data=readTab(s);setSnapshot(data);setStatus('พบ '+data.rows.length+' รายชื่อ และ '+data.columns.length+' คอลัมน์คะแนนที่ไม่พบสูตรในช่วงตรวจสอบ');
+  }catch(e){setStatus(e instanceof Error?e.message:'ตรวจแท็บไม่ได้')}
+ }
+ let matches:ReturnType<typeof proposeSheetMatches>|null=null,matchError='';
+ if(snapshot){try{matches=proposeSheetMatches(report.students.map(s=>({studentId:s.id,name:s.name})),snapshot.rows)}catch(e){matchError=e instanceof Error?e.message:'จับคู่ไม่ได้'}}
+ const w=report.works.find(x=>x.id===work),c=snapshot?.columns.find(x=>String(x.column)===column);
+ function compare(){
+  setPlan(null);
+  if(!snapshot||!matches||!confirmed||!w||!c)return;
+  try{
+   const rows:SheetGrade[]=snapshot.rows.map(s=>{const cell=snapshot.sheet.getCell(s.row,c.column);return {...s,value:cell.value,formula:hasFormula(cell.value)}});
+   const web=report.students.map(s=>{const cell=s.cells.find(x=>x.workId===w.id);if(!cell)throw Error('ข้อมูลเว็บไม่ครบ');return {studentId:s.id,name:s.name,score:cell.score,submitted:cell.state!=='missing'}});
+   setPlan(planSheetGradeSync({direction,webMax:w.maxScore,sheetMax:c.maxScore,web,sheet:rows,matches}));setStatus('เปรียบเทียบสำเร็จ · ไม่มีการบันทึกคะแนน');
+  }catch(e){setStatus(e instanceof Error?e.message:'เปรียบเทียบไม่ได้')}
+ }
+ return <details className="panel checking-tools"><summary>Smart Google Sheets Sync · ทดลองจับคู่คะแนน</summary>
+ <p>ดาวน์โหลด Google Sheets เป็น Microsoft Excel (.xlsx) แล้วเลือกไฟล์ที่นี่ ระบบอ่านบนอุปกรณ์เท่านั้น ยังไม่เชื่อม API หรือเขียนข้อมูลจริง รองรับหัวตาราง 4 แถว ชื่อในคอลัมน์ B และรายชื่อเริ่มแถว 5</p>
+ <label>ไฟล์คะแนน<input type="file" accept=".xlsx" disabled={busy} onChange={e=>{const f=e.target.files?.[0];e.target.value='';if(f)void load(f)}}/></label>
+ {fileName&&<small>{fileName}</small>}
+ {book&&<label>แท็บคะแนน<select value={snapshot?.name??''} onChange={e=>chooseTab(e.target.value)}><option value="">เลือกแท็บ</option>{tabs.map(t=><option key={t}>{t}</option>)}</select></label>}
+ {snapshot&&<><p>{matchError||'พบชื่อที่ตรงกัน '+matches?.length+' คน · ตรวจรายชื่อก่อนยืนยัน'}</p>
+ {matches&&<><div className="score-table-scroll"><table><thead><tr><th>รหัสในเว็บ</th><th>ชื่อ</th><th>แถวในไฟล์</th></tr></thead><tbody>{matches.map(m=><tr key={m.studentId}><td>{m.studentId}</td><td>{m.name}</td><td>{m.row}</td></tr>)}</tbody></table></div>
+ <label><input type="checkbox" checked={confirmed} onChange={e=>{setConfirmed(e.target.checked);setPlan(null)}}/> ตรวจยืนยันรายชื่อและขอบเขตห้องนี้แล้ว</label></>}
+ <div className="filters">
+ <label>งานใน GradeFlow<select value={work} onChange={e=>{setWork(e.target.value);setPlan(null)}}><option value="">เลือกงาน</option>{report.works.map(x=><option key={x.id} value={x.id}>{x.title} ({x.maxScore})</option>)}</select></label>
+ <label>คอลัมน์คะแนนในไฟล์<select value={column} onChange={e=>{setColumn(e.target.value);setPlan(null)}}><option value="">เลือกคอลัมน์</option>{snapshot.columns.map(x=><option key={x.column} value={x.column}>{letter(x.column)} · {x.label} ({x.maxScore})</option>)}</select></label>
+ <label>ทิศทาง<select value={direction} onChange={e=>{setDirection(e.target.value as SyncDirection);setPlan(null)}}><option value="import">จากชีตเข้าเว็บ</option><option value="export">จากเว็บไปชีต</option></select></label>
+ <button type="button" className="primary" disabled={!confirmed||!matches||!w||!c||w.maxScore!==c.maxScore} onClick={compare}>ตรวจตัวอย่างคะแนน</button>
+ </div>{w&&c&&w.maxScore!==c.maxScore&&<p role="alert">คะแนนเต็มไม่ตรงกัน รุ่นแรกยังไม่แปลงสัดส่วน</p>}</>}
+ <p role="status" aria-live="polite">{status}</p>
+ {plan&&<><p>เสนอเปลี่ยน {plan.filter(x=>x.state==='reviewImport'||x.state==='reviewExport').length} · คะแนนต่าง {plan.filter(x=>x.state==='conflict').length} · ไม่ถูกต้อง {plan.filter(x=>x.state==='invalid').length} · ตรงกัน {plan.filter(x=>x.state==='same').length}</p><div className="score-table-scroll"><table><thead><tr><th>รหัส</th><th>แถว</th><th>เว็บ</th><th>ชีต</th><th>ผลตรวจ</th></tr></thead><tbody>{plan.map(x=><tr key={x.studentId}><td>{x.studentId}</td><td>{x.row}</td><td>{x.webScore??'—'}</td><td>{typeof x.sheetScore==='number'||typeof x.sheetScore==='string'?String(x.sheetScore)||'—':'—'}</td><td>{stateLabel[x.state]}</td></tr>)}</tbody></table></div><small>ตัวอย่างเท่านั้น ไม่สามารถยืนยันเขียนคะแนนได้ในรุ่นนี้ · ใช้ไฟล์ล่าสุดและโหลดรายงานเว็บใหม่ก่อนเปรียบเทียบ</small></>}
+ </details>
+}
