@@ -6,8 +6,8 @@ import { summarizeWeightedGrades, type GradeWork } from '../../lib/weighted-grad
 import { provisionalGrade } from '../../lib/ranking';
 
 const rosterStatus: Record<RosterPreviewRow['status'], string> = {
- new: 'พร้อมเพิ่ม',
- reactivate: 'รายชื่อเดิมที่ปิดใช้งาน',
+ new: 'ยังไม่อยู่ในรายวิชา · ต้องตรวจห้อง',
+ reactivate: 'รายชื่อเดิมที่ปิดใช้งาน · ต้องตรวจห้อง',
  enrolled: 'อยู่ในรายวิชาแล้ว',
  unavailable: 'ไม่พบข้อมูลกลางที่เปิดใช้งาน',
  invalid: 'รูปแบบรหัสไม่ถูกต้อง',
@@ -24,7 +24,7 @@ export function BulkRosterPreview({ roomId, ready, students, roster }: {
  const preview = ready && confirmed.trim() ? previewBulkRoster(confirmed, students, roster) : null;
  return <section className="panel">
   <h2>ตรวจรายชื่อก่อนเพิ่มหลายคน</h2>
-  <p>ห้อง {roomId} · ตรวจรหัสกับทะเบียนกลางและรายชื่อรายวิชา โปรดยืนยันห้องของนักเรียนจากรายชื่อห้องเรียนก่อนเพิ่ม</p>
+  <p>ห้อง {roomId} · ระบบตรวจรหัสกับทะเบียนกลางและรายชื่อรายวิชา โปรดตรวจว่านักเรียนอยู่ในห้องนี้ก่อนเพิ่มหรือเปิดใช้งานอีกครั้ง</p>
   <form onSubmit={event => { event.preventDefault(); if (ready) setConfirmed(raw); }}>
    <label>รหัสนักเรียน คั่นด้วยบรรทัดใหม่หรือจุลภาค
     <textarea rows={4} maxLength={32000} value={raw} disabled={!ready}
@@ -35,7 +35,7 @@ export function BulkRosterPreview({ roomId, ready, students, roster }: {
   {!ready && <p role="status">ต้องมีข้อมูลกลางและรายชื่อรายวิชาจากเซิร์ฟเวอร์ครบก่อนตรวจ</p>}
   {ready && confirmed.trim() && !preview && <p role="alert">ตรวจได้สูงสุด 500 รหัส</p>}
   {preview && <>
-   <p role="status">พร้อมเพิ่ม {preview.filter(row => row.status === 'new').length} จาก {preview.length} รหัส</p>
+   <p role="status">ต้องตรวจห้องก่อนเพิ่มหรือเปิดใช้งาน {preview.filter(row => row.status === 'new' || row.status === 'reactivate').length} จาก {preview.length} รหัส</p>
    <div style={{ overflowX: 'auto' }}><table>
     <thead><tr><th scope="col">รหัส</th><th scope="col">ชื่อ</th><th scope="col">สถานะ</th></tr></thead>
     <tbody>{preview.map(row => <tr key={row.id}><td>{row.id}</td><td>{row.name ?? '—'}</td>
