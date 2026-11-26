@@ -40,7 +40,7 @@ export default function ScoreExport({
       setTable(scoreExportTable(scope, students));
     } catch {
       setTable(null);
-      setStatus('เปิดตัวอย่างไม่ได้ เนื่องจากรหัสนักเรียนว่างหรือซ้ำ');
+      setStatus('เปิดตัวอย่างไม่ได้ เนื่องจากรหัสนักเรียนว่าง ซ้ำ หรือมีช่องว่างหัวท้าย/อักขระควบคุม');
     }
   }
 

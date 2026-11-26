@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { summarizeWeightedGrades } from '../lib/weighted-grade-preview.ts';
+import { summarizeWeightedGrades, weightedGradePreview } from '../lib/weighted-grade-preview.ts';
 import { previewBulkRoster } from '../lib/bulk-roster-preview.ts';
 
 const students = [{ id: 'TEST001', name: 'Synthetic One' }, { id: 'TEST002', name: 'Synthetic Two' }];
@@ -41,4 +41,12 @@ test('bulk preview considers only explicit unique IDs and reflects active server
   ['TEST004', 'reactivate'], ['TEST999', 'unavailable'], ['bad/id', 'invalid'],
  ]);
  assert.equal(previewBulkRoster(Array.from({ length: 501 }, (_, index) => 'T' + index).join(','), master, roster), null);
+});
+
+test('weighted previews reject malformed maximum scores even in zero-weight categories', () => {
+ const categories = [{ weight: 0, workIds: ['homework'] }, { weight: 100, workIds: ['exam'] }];
+ for (const maxScore of [-1, NaN, Infinity]) {
+  assert.equal(summarizeWeightedGrades(students, [{ ...works[0], maxScore }, works[1]], categories), null);
+ }
+ assert.equal(weightedGradePreview([{ weight: 100, earned: Number.MAX_VALUE, possible: Number.MAX_VALUE, complete: true }]), 100);
 });

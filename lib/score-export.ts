@@ -26,7 +26,10 @@ export type SheetsMapping = Partial<Record<ColumnKey, string>>;
 export function scoreExportTable(scope: ExportScope, students: readonly ScoreExportRow[]) {
   const ids = new Set<string>();
   const rows = students.map(student => {
-    if (!student.studentId.trim() || ids.has(student.studentId)) throw Error('invalid student IDs');
+    if (!student.studentId.trim() || student.studentId !== student.studentId.trim() ||
+        /[\u0000-\u001f\u007f]/.test(student.studentId) || ids.has(student.studentId)) {
+      throw Error('invalid student IDs');
+    }
     ids.add(student.studentId);
     return scoreExportColumns.map(({key}) => student[key]);
   });
