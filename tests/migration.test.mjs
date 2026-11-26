@@ -6,3 +6,40 @@ test('counts valid zero scores and leave separately, never exports config',()=>{
 test('rejects missing structures, invalid score and orphan records',()=>{assert.throws(()=>inspectLegacy({students:{}}));const d=example();d.records.a1['001'].score=11;d.records.a1.unknown={submitted:true,score:1};assert.equal(inspectLegacy(d).issues.length,2)});
 
 test('preserves zero, notes, timestamp and leave; explicit mapping rejects mismatch',()=>{const d=prepareLegacy(example());const a=d.work[0];assert.equal(a.records.find(r=>r.studentId==='001').score,0);assert.equal(a.records.find(r=>r.studentId==='001').originalTs,123);assert.equal(a.records.find(r=>r.studentId==='001').note,'note');assert.equal(a.records.find(r=>r.studentId==='002').status,'leave');const p=matchLegacy(a,d.roster,[{code:'001',name:'Test'}]);assert.equal(p.records.length,1);assert.equal(p.outside,1);assert.equal(p.problems.length,0);assert.equal(matchLegacy(a,d.roster,[{code:'001',name:'Wrong'}]).problems.length,2);});
+
+test('accepts object and serialized payload envelopes with identical preview and preparation',()=>{
+ const original=example();
+ for(const payload of [original,JSON.stringify(original)]){
+  const wrapped={payload,updated_at:'synthetic-time',saved_by:'synthetic-owner',config:{lineToken:'outer-secret'}};
+  assert.deepEqual(inspectLegacy(wrapped),inspectLegacy(original));
+  assert.deepEqual(prepareLegacy(wrapped),prepareLegacy(original));
+  for(const output of [inspectLegacy(wrapped),prepareLegacy(wrapped)]){
+   assert.ok(!JSON.stringify(output).includes('secret-test-value'));
+   assert.ok(!JSON.stringify(output).includes('outer-secret'));
+   assert.ok(!JSON.stringify(output).includes('synthetic-owner'));
+  }
+ }
+});
+test('rejects ambiguous, invalid, partial or array payloads without inventing missing records',()=>{
+ for(const raw of [
+  {...example(),payload:example()},
+  {students:{},payload:example()},
+  {payload:'{bad json'},
+  {payload:null},
+  {payload:[]},
+  {payload:{students:{},assignments:{}}},
+  {payload:{students:[],assignments:{},records:{}}},
+  {payload:{payload:example()}},
+ ]){
+  assert.throws(()=>inspectLegacy(raw));
+  assert.throws(()=>prepareLegacy(raw));
+ }
+});
+test('wrapped backup retains score and identity validation',()=>{
+ const bad=example();bad.records.a1['001'].score=11;
+ assert.equal(inspectLegacy({payload:bad}).issues.length,1);
+ assert.throws(()=>prepareLegacy({payload:bad}));
+ const empty={students:{},assignments:{},records:{}};
+ assert.equal(inspectLegacy({payload:empty}).students,0);
+ assert.deepEqual(prepareLegacy({payload:empty}),{roster:[],work:[]});
+});
