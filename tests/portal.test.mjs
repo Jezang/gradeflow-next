@@ -1,3 +1,4 @@
+import {advisorPreview} from '../lib/advisor-preview.ts';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { readPortal } from '../lib/portal-access.ts';
@@ -211,4 +212,15 @@ test('wrong Firebase projects, wrong issuers and expired tokens never reach the 
     assert.equal((await readPortal(request('student', firebaseToken(override)), 'student', true, backend)).status, 401);
   }
   assert.equal(calls, 0);
+});
+
+test('advisor preview keeps zero separate from missing and waiting, excludes inactive rows',()=>{
+ const roster=[{id:'01',name:'A',active:true},{id:'02',name:'B',active:true},{id:'03',name:'C',active:false}];
+ const works=[{id:'w1',title:'One',maxScore:10,active:true,records:[{id:'01',submitted:true,score:0},{id:'02',submitted:true,score:null}]},{id:'w2',title:'Two',maxScore:5,active:true,records:[]},{id:'w3',title:'Inactive',maxScore:10,active:false,records:[]}];
+ const p=advisorPreview(roster,works);
+ assert.equal(p.works.length,2);assert.equal(p.students.length,2);
+ assert.deepEqual(p.students[0].cells,[{workId:'w1',state:'graded',score:0},{workId:'w2',state:'missing',score:null}]);
+ assert.equal(p.students[0].possible,10);assert.equal(p.students[0].graded,1);
+ assert.equal(p.students[1].pending,1);assert.equal(p.students[1].missing,1);
+ assert.throws(()=>advisorPreview(roster,[{...works[0],records:[{id:'01',submitted:true,score:11}]}]));
 });
