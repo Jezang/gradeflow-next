@@ -265,3 +265,27 @@
  @media(max-width:1120px){.teacher-hub .demo-grade-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
  @media(max-width:550px){.teacher-hub .demo-grade-stats .panel{padding:12px}.demo-score-avatar{width:32px;height:36px}}
 }
+
+/* Keep native table semantics, with narrower columns and wrapping on phones. */
+@media screen{
+ .teacher-hub .hub-ring-panel{--hub-ring-track:#e9c5d5}
+ .teacher-hub .hub-legend span+span i{background:var(--hub-ring-track)}
+ .teacher-hub.night .hub-ring-panel{--hub-ring-track:#855a72}
+ .teacher-hub.night .tile{background:var(--sakura-soft);color:var(--garden-ink)}
+ .teacher-hub.night .hub-kpi-icon{background:var(--sakura-soft);color:var(--sakura-accent)}
+ .teacher-hub.night .champions-panel .rank .score{color:var(--sakura-accent)}
+ .teacher-hub .sakura-score-table th,.teacher-hub .sakura-score-table td{overflow-wrap:anywhere}
+ @media(max-width:550px){
+  .teacher-hub .sakura-scanner .sakura-score-table{min-width:0;table-layout:fixed;font-size:13px}
+  .teacher-hub .sakura-scanner .sakura-score-table th:first-child{width:35%}
+  .teacher-hub .sakura-scanner .sakura-score-table th:nth-child(2){width:33%}
+  .teacher-hub .sakura-scanner .sakura-score-table th:nth-child(3){width:32%}
+  .teacher-hub .sakura-scanner .sakura-score-table th,.teacher-hub .sakura-scanner .sakura-score-table td{padding:9px 5px}
+  .teacher-hub .sakura-scanner .score-inline-edit{min-width:0}
+  .teacher-hub .sakura-scanner .score-inline-edit input,.teacher-hub .sakura-scanner .score-inline-edit button{min-width:0;width:100%;padding:8px 4px;font-size:13px}
+  .teacher-hub .sakura-scanner .score-row-actions{display:grid;grid-template-columns:minmax(0,1fr)}
+  .teacher-hub .sakura-scanner .score-row-actions button{width:100%;padding:7px 4px;font-size:12px;white-space:normal;overflow-wrap:anywhere}
+  .teacher-hub .demo-student{align-items:flex-start;flex-direction:column;gap:4px}
+  .teacher-hub .demo-score-state{white-space:normal;padding:5px 6px;font-size:12px}
+ }
+}
