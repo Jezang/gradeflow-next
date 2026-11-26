@@ -11,3 +11,17 @@
  @media(max-width:850px){.garden nav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}.garden nav button{white-space:normal;text-align:left;min-height:44px}.garden .filters{flex-wrap:wrap}.garden .filters label{flex:1 1 160px}.garden .panel{padding:14px}.garden .rank>div{min-width:0;flex-basis:100%}.garden .rank button{min-height:44px}}
  @media(max-width:400px){.garden .filters{display:grid;grid-template-columns:minmax(0,1fr)}.garden .filters>*{width:100%}.label-grid{grid-template-columns:minmax(0,1fr)}}
 }
+
+/* Shared link affordances; scoped away from the public landing page's custom menu. */
+@media screen {
+ .garden:not(.sakura-home) a {color:var(--garden-link,#963e61);text-underline-offset:3px;font-weight:600}
+ .garden.night {--garden-link:#f4b6ce}
+ .garden:not(.sakura-home) a:focus-visible {outline:2px solid #b76b90;outline-offset:3px;border-radius:4px}
+ .garden:not(.sakura-home) nav a,.garden:not(.sakura-home) aside>a {
+  display:flex;align-items:center;min-height:44px;padding:10px 12px;border-radius:12px;
+  text-decoration:none;color:var(--garden-ink);border:1px solid var(--garden-border);
+ }
+ .garden:not(.sakura-home) nav a:hover,.garden:not(.sakura-home) aside>a:hover {background:#f9dce7;color:#823451}
+ .garden:not(.sakura-home) a.primary {display:inline-flex;align-items:center;min-height:44px;padding:10px 15px;border-radius:12px;text-decoration:none;color:#fff}
+ .garden:not(.sakura-home) nav button {min-height:44px}
+}
