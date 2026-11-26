@@ -23,9 +23,15 @@ type ScoreExportProps = {
 
 export default function ScoreExport({scope, students}: ScoreExportProps) {
   const snapshotKey = scoreExportSnapshotKey(scope, students);
+  const [snapshot, setSnapshot] = useState(() => ({identity: snapshotKey, version: 0}));
+  // Compare the local identity in state, but keep student data out of React element keys.
+  // React retries this render before committing children when the identity changes.
+  if (snapshot.identity !== snapshotKey) {
+    setSnapshot({identity: snapshotKey, version: snapshot.version + 1});
+  }
   return <div>
     <p>หากข้อมูลคะแนน รายชื่อ หรือรายวิชาเปลี่ยน ระบบจะให้ตรวจสอบและอนุมัติตัวอย่างใหม่ก่อนดาวน์โหลด</p>
-    <ReviewedScoreExport key={snapshotKey ?? 'invalid'} scope={scope} students={students}/>
+    <ReviewedScoreExport key={snapshot.version} scope={scope} students={students}/>
   </div>;
 }
 
