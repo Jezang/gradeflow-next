@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {inspectLegacy,prepareLegacy,matchLegacy} from '../lib/migration.ts';
+import {inspectLegacy,prepareLegacy,matchLegacy,planLegacyGroups,checkLegacyRegistry} from '../lib/migration.ts';
 const example=()=>({students:{'001':{id:'001',name:'Test',level:'M2',room:'5',subject:'ENG',no:'1'},'002':{id:'002',name:'Test 2'}},assignments:{a1:{id:'a1',name:'Work',maxScore:10}},records:{a1:{'001':{score:0,submitted:true,note:'note',ts:123},'002':{score:null,submitted:false,status:'leave'}}},config:{lineToken:'secret-test-value'}});
 test('counts valid zero scores and leave separately, never exports config',()=>{const s=inspectLegacy(example());assert.equal(s.students,2);assert.equal(s.records,2);assert.equal(s.sent,1);assert.equal(s.graded,1);assert.equal(s.leave,1);assert.equal(s.notes,1);assert.equal(s.issues.length,0);assert.equal(s.roster[0].code,'001');assert.ok(!JSON.stringify(s).includes('secret-test-value'))});
 test('rejects missing structures, invalid score and orphan records',()=>{assert.throws(()=>inspectLegacy({students:{}}));const d=example();d.records.a1['001'].score=11;d.records.a1.unknown={submitted:true,score:1};assert.equal(inspectLegacy(d).issues.length,2)});
@@ -42,4 +42,35 @@ test('wrapped backup retains score and identity validation',()=>{
  const empty={students:{},assignments:{},records:{}};
  assert.equal(inspectLegacy({payload:empty}).students,0);
  assert.deepEqual(prepareLegacy({payload:empty}),{roster:[],work:[]});
+});
+
+test('plans exact class-room-subject groups without mixing adjacent subjects or levels',()=>{
+ const d=example();
+ d.students['002']={id:'002',name:'Test 2',level:'M2',room:'5',subject:'ENG2'};
+ d.students['003']={id:'003',name:'Test 3',level:'M3',room:'5',subject:'ENG'};
+ d.students['004']={id:'004',name:'Test 4',level:'M2',room:'5',subject:'ENG'};
+ d.students['005']={id:'005',name:'Test 5',level:'M2',room:'5'};
+ d.assignments.a1={id:'a1',name:'Work',maxScore:10,level:'M2',room:'5',subject:'ENG'};
+ d.assignments.a2={id:'a2',name:'Matched',maxScore:10,level:'M2',room:'5',subject:'ENG'};
+ d.assignments.a3={id:'a3',name:'Incomplete scope',maxScore:10,level:'M3',room:'5'};
+ d.records.a2={'001':{submitted:true,score:0}};
+ const p=planLegacyGroups(prepareLegacy({payload:d}));
+ assert.equal(p.studentCount,5);
+ assert.equal(p.rooms,2);assert.equal(p.subjects,2);assert.equal(p.groups.length,3);
+ assert.deepEqual(p.incomplete.map(s=>s.code),['005']);
+ assert.deepEqual(p.groups.find(g=>g.level==='M2'&&g.subject==='ENG').students.map(s=>s.code),['001','004']);
+ assert.equal(p.assignments[0].status,'review-records');assert.equal(p.assignments[0].outside,1);assert.equal(p.assignments[0].groupKey,null);
+ assert.equal(p.assignments[1].status,'matched');assert.equal(p.assignments[1].groupKey,JSON.stringify(['M2','5','ENG']));
+ assert.equal(p.assignments[2].status,'review-scope');assert.equal(p.assignments[2].candidateCount,1);assert.equal(p.assignments[2].groupKey,null);
+});
+test('registry verification requires exact code, name and active state',()=>{
+ const d=example();
+ d.students['003']={id:'003',name:'Test 3'};
+ d.students['004']={id:'004',name:'Test 4'};
+ assert.deepEqual(checkLegacyRegistry(prepareLegacy(d).roster,[
+  {code:'001',name:'Test',active:true},
+  {code:'002',name:'Different',active:true},
+  {code:'003',name:'Test 3',active:false},
+  {code:'999',name:'Unrelated',active:true},
+ ]),{matched:1,missing:1,nameMismatch:1,inactive:1});
 });
