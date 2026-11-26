@@ -1,3 +1,4 @@
+import {normalizeSheetLink} from '../lib/sheet-link.ts';
 import {advisorPreview} from '../lib/advisor-preview.ts';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
@@ -223,4 +224,11 @@ test('advisor preview keeps zero separate from missing and waiting, excludes ina
  assert.equal(p.students[0].possible,10);assert.equal(p.students[0].graded,1);
  assert.equal(p.students[1].pending,1);assert.equal(p.students[1].missing,1);
  assert.throws(()=>advisorPreview(roster,[{...works[0],records:[{id:'01',submitted:true,score:11}]}]));
+});
+
+test('advisor sheet shortcut validates ordinary document links and retains the tab',()=>{
+ assert.equal(normalizeSheetLink(' https://docs.google.com/spreadsheets/d/demo_123/edit?usp=sharing&gid=2#gid=3 '),'https://docs.google.com/spreadsheets/d/demo_123/edit#gid=2');
+ assert.equal(normalizeSheetLink('https://docs.google.com/spreadsheets/d/demo_123/edit#gid=0'),'https://docs.google.com/spreadsheets/d/demo_123/edit#gid=0');
+ assert.equal(normalizeSheetLink(''),null);
+ for(const link of ['javascript:alert(1)','https://docs.google.com.example.com/spreadsheets/d/x/edit','https://docs.google.com/spreadsheets/d/e/x/pubhtml','http://docs.google.com/spreadsheets/d/x/edit','https://docs.google.com/spreadsheets/d/x/edit#gid=bad','https://user@docs.google.com/spreadsheets/d/x/edit'])assert.throws(()=>normalizeSheetLink(link));
 });
