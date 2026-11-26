@@ -225,3 +225,28 @@
  .teacher-hub .hub-brand-mark .sakura-animal{width:100%;height:100%}
  .teacher-hub .tile .sakura-icon{color:var(--sakura-accent)}
 }
+
+/* Compact mobile shortcuts; the existing role-filtered sidebar remains the full menu. */
+.teacher-hub .hub-bottom-nav{display:none}
+@media screen {
+ .teacher-hub progress{appearance:none;-webkit-appearance:none;background:var(--sakura-soft);border:0;border-radius:999px;overflow:hidden;height:9px;color:var(--hub-progress,#69ad90)}
+ .teacher-hub progress::-webkit-progress-bar{background:var(--sakura-soft);border-radius:999px}
+ .teacher-hub progress::-webkit-progress-value{background:var(--hub-progress,#69ad90);border-radius:999px}
+ .teacher-hub progress::-moz-progress-bar{background:var(--hub-progress,#69ad90);border-radius:999px}
+ .teacher-hub .hub-kpi progress{--hub-progress:var(--kpi-color);height:7px}
+ .teacher-hub.night progress{--hub-progress:#91d1ac}
+ .teacher-hub .hub-kpi strong{letter-spacing:-.035em;font-variant-numeric:tabular-nums}
+ .teacher-hub .hub-topbar h1,.teacher-hub .hub-section-heading h2{letter-spacing:-.015em}
+ .teacher-hub .hub-garden-hero .petals i{opacity:.28;animation-duration:18s}
+ .teacher-hub .hub-garden-hero .petals{pointer-events:none}
+ @media(prefers-reduced-motion:reduce){.teacher-hub .hub-garden-hero .petals{display:none}}
+ @media(max-width:850px){
+  .teacher-hub main{padding-bottom:calc(104px + env(safe-area-inset-bottom,0px))}
+  .teacher-hub .hub-bottom-nav{position:fixed;inset:auto 0 0;z-index:15;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;padding:7px 10px calc(7px + env(safe-area-inset-bottom,0px));background:var(--garden-card);border-top:1px solid var(--garden-border);box-shadow:0 -4px 20px #5b405b10;overflow:visible}
+  .teacher-hub .hub-bottom-nav button{display:flex;flex-direction:column;justify-content:center;align-items:center;gap:4px;min-height:54px;min-width:0;padding:5px 2px;border:0;border-radius:14px;color:var(--garden-muted);font-size:11px;line-height:1.3;white-space:normal;text-align:center}
+  .teacher-hub .hub-bottom-nav button.active{box-shadow:none;background:var(--sakura-soft);color:var(--sakura-accent);font-weight:750}
+  .teacher-hub .hub-bottom-nav button .sakura-icon{width:21px;height:21px}
+  .teacher-hub .hub-bottom-nav button:focus-visible{outline-offset:0}
+ }
+}
+@media print{.teacher-hub .hub-bottom-nav{display:none!important}}
