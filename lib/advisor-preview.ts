@@ -24,3 +24,18 @@ export function advisorPreview(roster:AdvisorRoster[],works:AdvisorWork[]){
  });
  return {works:assignments.map(({id,title,maxScore})=>({id,title,maxScore})),students};
 }
+
+export function confirmedRosterNumbers(roster:{id:string;name:string}[],history:{id:string;name:string;no:unknown}[]){
+ const names=new Map(roster.map(r=>[r.id,r.name]));
+ const candidates=new Map<string,Set<number>>();
+ for(const row of history){
+  const no=String(row.no??'').trim();
+  if(names.get(row.id)!==row.name||!/^\d{1,3}$/.test(no)||Number(no)<1)continue;
+  const set=candidates.get(row.id)??new Set<number>();set.add(Number(no));candidates.set(row.id,set);
+ }
+ const numbers=new Map<string,number>();
+ const counts=new Map<number,number>();
+ for(const [id,set] of candidates)if(set.size===1){const no=[...set][0];numbers.set(id,no);counts.set(no,(counts.get(no)??0)+1)}
+ for(const [id,no] of numbers)if(counts.get(no)!>1)numbers.delete(id);
+ return numbers;
+}
