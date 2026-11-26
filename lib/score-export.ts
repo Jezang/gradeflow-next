@@ -30,6 +30,9 @@ export function scoreExportTable(scope: ExportScope, students: readonly ScoreExp
         /[\u0000-\u001f\u007f]/.test(student.studentId) || ids.has(student.studentId)) {
       throw Error('invalid student IDs');
     }
+    if (![student.expected, student.submitted, student.graded, student.points, student.maximum].every(Number.isFinite)) {
+      throw Error('invalid numeric export values');
+    }
     ids.add(student.studentId);
     return scoreExportColumns.map(({key}) => student[key]);
   });
