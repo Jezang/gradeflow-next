@@ -1,3 +1,4 @@
+import {planSheetGradeSync} from '../lib/sheet-grade-sync.ts';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {gradebookCsvPreview} from '../lib/gradebook-csv-preview.ts';
@@ -68,4 +69,20 @@ test('export snapshot identity changes when the reviewed scope, roster, scores o
  assert.notEqual(scoreExportSnapshotKey(scope, []), original);
  assert.equal(scoreExportSnapshotKey(scope, [{...student, points: Infinity}]), null);
  assert.equal(scoreExportSnapshotKey(scope, [student, student]), null);
+});
+
+test('sheet sync preview preserves zero and decimal scores and never silently overwrites',()=>{
+ const web=[{studentId:'01',name:'A',submitted:false,score:null},{studentId:'02',name:'B',submitted:true,score:0},{studentId:'03',name:'C',submitted:true,score:2},{studentId:'04',name:'D',submitted:true,score:1},{studentId:'05',name:'E',submitted:false,score:null}];
+ const sheet=[{row:5,name:'A',value:2.5,formula:false},{row:6,name:'B',value:'',formula:false},{row:7,name:'C',value:1,formula:false},{row:8,name:'D',value:1,formula:false},{row:9,name:'E',value:0,formula:true}];
+ const matches=web.map((w,i)=>({studentId:w.studentId,row:i+5,name:w.name}));
+ const base={webMax:2.5,sheetMax:2.5,web,sheet,matches};
+ const imports=planSheetGradeSync({...base,direction:'import'});
+ const exports=planSheetGradeSync({...base,direction:'export'});
+ assert.deepEqual(imports.map(x=>x.state),['reviewImport','skip','conflict','same','protected']);
+ assert.equal(imports[0].proposed,2.5);
+ assert.deepEqual(exports.map(x=>x.state),['skip','reviewExport','conflict','same','protected']);
+ assert.equal(exports[1].proposed,0);
+ assert.throws(()=>planSheetGradeSync({...base,direction:'import',sheetMax:5}));
+ assert.throws(()=>planSheetGradeSync({...base,direction:'import',matches:matches.slice(1)}));
+ assert.throws(()=>planSheetGradeSync({...base,direction:'import',sheet:[{...sheet[0],name:'Different'},...sheet.slice(1)]}));
 });
