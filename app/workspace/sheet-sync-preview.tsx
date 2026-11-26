@@ -4,7 +4,7 @@ import type {Workbook,Worksheet} from 'exceljs';
 import type {advisorPreview} from '../../lib/advisor-preview';
 import {planSheetGradeSync,proposeSheetMatches,sheetScoreColumns,type SyncDirection,type SheetGrade,type SheetColumn} from '../../lib/sheet-grade-sync';
 type Report=ReturnType<typeof advisorPreview>;
-type Snapshot={name:string;columns:SheetColumn[];rows:{row:number;name:string}[];sheet:Worksheet};
+type Snapshot={name:string;columns:SheetColumn[];rows:{row:number;name:string;studentId?:string}[];sheet:Worksheet};
 const hasFormula=(value:unknown)=>!!value&&typeof value==='object'&&('formula' in value||'sharedFormula' in value);
 function readTab(sheet:Worksheet):Snapshot{
  if(sheet.rowCount>2000||sheet.columnCount>100)throw Error('ไฟล์เกินขอบเขต 2,000 แถว / 100 คอลัมน์');
@@ -12,14 +12,15 @@ function readTab(sheet:Worksheet):Snapshot{
   const value=sheet.getCell(r+1,c+1).value;
   return typeof value==='string'||typeof value==='number'?value:null;
  }));
- const rows:{row:number;name:string}[]=[];
+ const rows:{row:number;name:string;studentId?:string}[]=[];
+ const withIds=headers[0][2]==='รหัสนักเรียน';
  const blocked=new Set<number>();
  for(let c=4;c<=sheet.columnCount;c++)if(hasFormula(sheet.getCell(4,c).value))blocked.add(c);
  for(let r=5;r<=sheet.rowCount;r++){
-  const number=sheet.getCell(r,1).value,name=sheet.getCell(r,2).value;
-  if((number===null||number==='')&&(name===null||name===''))continue;
-  if(typeof name!=='string'||!name.trim()||!/^\d+$/.test(String(number??'').trim()))throw Error('พบแถวที่ไม่ใช่รายชื่อนักเรียนที่แถว '+r+' กรุณาใช้สำเนาที่มีเฉพาะตารางคะแนน');
-  rows.push({row:r,name});
+  const number=sheet.getCell(r,1).value,name=sheet.getCell(r,2).value,id=withIds?sheet.getCell(r,3).value:null;
+  if((number===null||number==='')&&(name===null||name==='')&&(id===null||id===''))continue;
+  if(typeof name!=='string'||!name.trim()||(!withIds&&!/^\d+$/.test(String(number??'').trim()))||(withIds&&(typeof id!=='string'||!(/^[A-Za-z0-9_-]{1,60}$/).test(id))))throw Error('พบแถวที่ไม่ใช่รายชื่อนักเรียนที่แถว '+r+' กรุณาใช้สำเนาที่มีเฉพาะตารางคะแนน');
+  rows.push({row:r,name,...(withIds?{studentId:String(id)}:{})});
   for(let c=4;c<=sheet.columnCount;c++)if(hasFormula(sheet.getCell(r,c).value))blocked.add(c);
  }
  if(!rows.length||rows.length>500)throw Error('ต้องมีรายชื่อนักเรียน 1–500 คน');
@@ -53,7 +54,7 @@ export default function SheetSyncPreview({report}:{report:Report}){
   }catch(e){setStatus(e instanceof Error?e.message:'ตรวจแท็บไม่ได้')}
  }
  let matches:ReturnType<typeof proposeSheetMatches>|null=null,matchError='';
- if(snapshot){try{matches=proposeSheetMatches(report.students.map(s=>({studentId:s.id,name:s.name})),snapshot.rows)}catch(e){matchError=e instanceof Error?e.message:'จับคู่ไม่ได้'}}
+ if(snapshot){try{matches=proposeSheetMatches(report.students.map(s=>({studentId:s.id,name:s.name})),snapshot.rows);if(snapshot.rows.some(r=>r.studentId!==undefined)&&matches.some(m=>snapshot.rows.find(r=>r.row===m.row)?.studentId!==m.studentId))throw Error('รหัสนักเรียนในไฟล์ไม่ตรงกับรายชื่อบนเว็บ')}catch(e){matches=null;matchError=e instanceof Error?e.message:'จับคู่ไม่ได้'}}
  const w=report.works.find(x=>x.id===work),c=snapshot?.columns.find(x=>String(x.column)===column);
  function compare(){
   setPlan(null);
@@ -65,7 +66,7 @@ export default function SheetSyncPreview({report}:{report:Report}){
   }catch(e){setStatus(e instanceof Error?e.message:'เปรียบเทียบไม่ได้')}
  }
  return <details className="panel checking-tools"><summary>Smart Google Sheets Sync · ทดลองจับคู่คะแนน</summary>
- <p>ดาวน์โหลด Google Sheets เป็น Microsoft Excel (.xlsx) แล้วเลือกไฟล์ที่นี่ ระบบอ่านบนอุปกรณ์เท่านั้น ยังไม่เชื่อม API หรือเขียนข้อมูลจริง รองรับหัวตาราง 4 แถว ชื่อในคอลัมน์ B และรายชื่อเริ่มแถว 5</p>
+ <p>ดาวน์โหลด Google Sheets เป็น Microsoft Excel (.xlsx) แล้วเลือกไฟล์ที่นี่ ระบบอ่านบนอุปกรณ์เท่านั้น ยังไม่เชื่อม API หรือเขียนข้อมูลจริง รองรับหัวตาราง 4 แถว ชื่อในคอลัมน์ B และรายชื่อเริ่มแถว 5 · ไฟล์ต้นแบบใหม่ตรวจรหัสในคอลัมน์ C เพิ่มเติม</p>
  <label>ไฟล์คะแนน<input type="file" accept=".xlsx" disabled={busy} onChange={e=>{const f=e.target.files?.[0];e.target.value='';if(f)void load(f)}}/></label>
  {fileName&&<small>{fileName}</small>}
  {book&&<label>แท็บคะแนน<select value={snapshot?.name??''} onChange={e=>chooseTab(e.target.value)}><option value="">เลือกแท็บ</option>{tabs.map(t=><option key={t}>{t}</option>)}</select></label>}
