@@ -1,0 +1,101 @@
+/* Public landing page only; the existing workspace and authentication behavior are unchanged. */
+.sakura-home {
+ --home-accent:#963e61;
+ --home-muted:#5d7166;
+ --home-rose:#f8dbe7;
+ --home-border:#efdee5;
+ min-height:100dvh;
+ background:radial-gradient(ellipse at 82% 0%,#f5eee4 0,transparent 36%),#fff9f5;
+ grid-template-columns:238px minmax(0,1fr);
+}
+.sakura-home .home-sidebar {
+ padding:26px 17px;
+ gap:14px;
+ background:#fffdfb;
+ border-right:1px solid var(--home-border);
+}
+.sakura-home .home-brand {display:flex;gap:10px;align-items:center;color:#34483f;text-decoration:none;font-weight:800;font-size:20px;line-height:1.25}
+.sakura-home .home-brand>span:first-child {width:44px;height:44px;border-radius:15px;background:#f8dbe7;display:grid;place-items:center;font-size:25px;flex:none}
+.sakura-home .home-brand b {color:var(--home-accent)}
+.sakura-home .home-brand small {font-size:9px;letter-spacing:.1em;font-weight:600;margin-top:4px}
+.home-sidebar-copy {font-size:12px;color:var(--home-muted);padding:0 4px 6px}
+.sakura-home nav {display:grid;grid-template-columns:1fr;gap:7px}
+.sakura-home nav a {display:flex;align-items:center;gap:10px;min-height:44px;padding:10px 11px;border-radius:12px;color:#3e544a;text-decoration:none;font-size:14px;font-weight:600;line-height:1.45}
+.sakura-home nav a span {display:grid;place-items:center;width:23px;font-size:19px;flex:none;color:#8b4562}
+.sakura-home nav a[aria-current="page"],.sakura-home nav a:hover {background:#fae4ed;color:#843451}
+.sakura-home a:focus-visible {outline:3px solid #a35c80;outline-offset:3px}
+.home-sidebar-note {margin-top:auto;background:#edf5ec;border:1px solid #dcebdc;border-radius:17px;padding:14px;display:grid;gap:5px;font-size:13px}
+.home-sidebar-note>span {font-size:23px}
+.sakura-home main {width:100%;max-width:1420px;min-width:0;padding:clamp(20px,3.2vw,48px)}
+.sakura-home .home-header {gap:12px;margin-bottom:24px}
+.home-header small,.home-section-title small,.home-start small {font-size:10px;letter-spacing:.11em;font-weight:700;color:#687b70}
+.home-header h1 {font-size:clamp(25px,3.4vw,35px);line-height:1.3;letter-spacing:-.025em}
+.sakura-home .pill {flex:none;font-weight:650;background:#e0eee4;border:1px solid #cfe5d5;color:#365b46}
+.sakura-home .home-hero {position:relative;isolation:isolate;min-height:280px;padding:clamp(25px,4vw,48px);gap:20px;border:1px solid #eedce3;border-radius:30px;box-shadow:0 10px 36px #8d52600b;background:linear-gradient(115deg,#f9dce9 0%,#f6e9e7 53%,#deefe3 100%);margin-bottom:32px}
+.home-hero-copy {min-width:0;flex:1;position:relative;z-index:1}
+.home-kicker {display:inline-block;font-size:10px;font-weight:750;letter-spacing:.1em;color:#75445a;background:#fff9;border-radius:20px;padding:7px 11px}
+.sakura-home .home-hero h2 {font-size:clamp(29px,4.1vw,49px);line-height:1.25;margin:15px 0;letter-spacing:-.035em;font-weight:800}
+.home-hero p {color:#4d6559;line-height:1.8;max-width:450px;margin:0 0 20px}
+.home-art {width:min(40%,340px);flex:none;height:auto;display:block}
+.home-actions {display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.home-actions a {display:inline-flex;justify-content:center;align-items:center;gap:10px;min-height:46px;padding:11px 17px;border-radius:12px;text-decoration:none;font-weight:700;font-size:14px;line-height:1.4}
+.sakura-home .home-actions .primary {background:#963e61;color:#fff;box-shadow:0 5px 14px #963e6124}
+.sakura-home .home-actions .primary:hover {background:#803351}
+.home-secondary {background:#ffffffc7;border:1px solid #e5cfd8;color:#68465a}
+.home-secondary:hover {background:#fff}
+.home-section-title {display:flex;align-items:flex-end;justify-content:space-between;gap:10px;margin:0 0 13px}
+.home-section-title h2 {margin:5px 0 0;font-size:22px}
+.home-features {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:26px}
+.sakura-home .home-feature {margin:0;min-width:0;display:flex;flex-direction:column;gap:8px;min-height:176px;padding:18px 15px;border-radius:19px;box-shadow:0 6px 20px #926b7609}
+.home-feature-icon {width:43px;height:43px;display:grid;place-items:center;border-radius:13px;font-size:24px;background:#f7e1e9}
+.home-feature.mint .home-feature-icon {background:#e1f1e7}
+.home-feature.lilac .home-feature-icon {background:#ece5f6}
+.home-feature.peach .home-feature-icon {background:#fbe9d9}
+.home-feature small {font-size:10px;font-weight:700;color:#6d706c;margin-top:5px}
+.home-feature h3 {font-size:17px;line-height:1.25;margin:0}
+.home-feature p {font-size:13px;line-height:1.65;color:#597065;margin:0}
+.sakura-home .home-start {display:flex;justify-content:space-between;align-items:center;gap:22px;padding:23px 25px;border-radius:22px;margin-bottom:15px}
+.home-start h2 {font-size:20px;margin:7px 0}
+.home-start p {margin:0;color:var(--home-muted);line-height:1.65}
+.home-notice {font-size:12px;line-height:1.7;color:#65766d;margin:16px 0}
+@media(max-width:1140px) {.home-features {grid-template-columns:repeat(2,minmax(0,1fr))}.sakura-home .home-start {align-items:flex-start;flex-direction:column}}
+@media(max-width:850px) {
+ .sakura-home {grid-template-columns:minmax(0,1fr)}
+ .sakura-home .home-sidebar {position:static;height:auto;padding:15px 18px;gap:9px;border-right:0;border-bottom:1px solid var(--home-border)}
+ .home-sidebar-copy,.home-sidebar-note {display:none}
+ .sakura-home nav {grid-template-columns:repeat(auto-fit,minmax(116px,1fr));gap:5px}
+ .sakura-home nav a {padding:8px;gap:6px;font-size:13px}
+ .sakura-home nav a span {font-size:16px;width:18px}
+ .sakura-home main {padding:20px 16px}
+ .sakura-home .home-hero {min-height:220px;padding:24px 20px;gap:8px;border-radius:23px}
+ .home-art {width:min(38%,230px)}
+}
+@media(max-width:530px) {
+ .sakura-home .home-hero {flex-direction:column;align-items:stretch;padding:24px 19px 10px}
+ .sakura-home .home-hero h2 {font-size:32px}
+ .home-art {width: min(73%,230px);align-self:center;margin-top:-8px}
+ .home-actions a {flex:1 1 125px}
+ .home-features {gap:9px}
+ .sakura-home .home-feature {padding:13px;min-height:158px}
+ .home-feature h3 {font-size:15px}
+ .home-feature p {font-size:12px}
+ .home-section-title h2 {font-size:19px}
+ .sakura-home .home-start {padding:17px}
+}
+@media(max-width:350px) {.home-features{grid-template-columns:1fr}.home-header h1{font-size:21px}.home-section-title>.muted{display:none}}
+
+.sakura-home .home-scenic-hero{background:#d5eee8 url('/sakura-garden.svg') center right/cover no-repeat;min-height:320px;isolation:isolate}
+.home-scenic-hero:before{content:"";position:absolute;inset:0;background:linear-gradient(90deg,#fff8f2fa 0%,#fff8f2ee 32%,#fff8f2c0 48%,transparent 77%);z-index:-1}
+.home-scenic-hero .home-hero-copy{max-width:55%}
+@media(max-width:850px){.sakura-home .home-scenic-hero{min-height:280px;background-position:65% center}.home-scenic-hero .home-hero-copy{max-width:65%}}
+@media(max-width:530px){.sakura-home .home-scenic-hero{padding:24px 19px 130px;background-position:70% bottom;background-size:auto 100%}.home-scenic-hero:before{background:linear-gradient(180deg,#fff8f2fa,#fff8f2ef 48%,#fff8f290 68%,transparent 92%)}.home-scenic-hero .home-hero-copy{max-width:100%}}
+
+/* Cohesive custom brand and feature artwork. */
+.sakura-home .home-brand>span:first-child{padding:3px}
+.sakura-home .home-brand .sakura-animal{display:block;width:100%;height:100%}
+.sakura-home .home-feature-icon .sakura-icon{width:24px;height:24px}
+.sakura-home .home-sidebar-note .sakura-icon{color:#528465;width:23px;height:23px}
+.sakura-home .home-feature.rose .home-feature-icon{color:#963e61}
+.sakura-home .home-feature.mint .home-feature-icon{color:#467b61}
+.sakura-home .home-feature.lilac .home-feature-icon{color:#77549d}
+.sakura-home .home-feature.peach .home-feature-icon{color:#a16445}

@@ -34,7 +34,7 @@ export function BulkRosterPreview({ roomId, ready, students, roster }: {
  const [confirmed, setConfirmed] = useState('');
  const preview = ready && confirmed.trim() ? previewBulkRoster(confirmed, students, roster) : null;
  const candidates = preview?.filter(row => row.status === 'new' || row.status === 'reactivate') ?? [];
- return <section className="panel">
+ return <section className="panel roster-preview-panel">
   <h2>ตรวจรายชื่อก่อนเพิ่มหลายคน</h2>
   <p>ห้อง {roomId} · ระบบตรวจรหัสกับทะเบียนกลางและรายชื่อรายวิชา โปรดตรวจว่านักเรียนอยู่ในห้องนี้ก่อนเพิ่มหรือเปิดใช้งานอีกครั้ง</p>
   <form onSubmit={event => { event.preventDefault(); if (ready) setConfirmed(raw); }}>
@@ -48,7 +48,7 @@ export function BulkRosterPreview({ roomId, ready, students, roster }: {
   {ready && confirmed.trim() && !preview && <p role="alert">ตรวจได้สูงสุด 500 รหัส</p>}
   {preview && <>
    <p role="status">ต้องตรวจห้องก่อนเพิ่มหรือเปิดใช้งาน {candidates.length} จาก {preview.length} รหัส</p>
-   <div style={{ overflowX: 'auto' }}><table>
+   <div className="score-table-scroll" tabIndex={0} role="region" aria-label="ตัวอย่างรายชื่อ"><table className="sakura-score-table">
     <thead><tr><th scope="col">รหัส</th><th scope="col">ชื่อ</th><th scope="col">สถานะ</th></tr></thead>
     <tbody>{preview.map(row => <tr key={row.id}><td>{row.id}</td><td>{row.name ?? '—'}</td>
      <td>{rosterStatus[row.status]}</td></tr>)}</tbody>
@@ -106,7 +106,7 @@ export function WeightedGradePreview({ students, works }: {
     onChange={event => setDraft(event.target.value)} /></label>
    {!validCriteria && <p role="alert">กรอกเกณฑ์ 7 ค่า จากมากไปน้อย ระหว่าง 0–100%</p>}
    {!rows ? <p role="status">น้ำหนักรวมต้องเท่ากับ 100% และทุกหมวดที่มีน้ำหนักต้องมีงานอย่างน้อยหนึ่งรายการ</p>
-    : <div style={{ overflowX: 'auto' }}><table>
+    : <div className="score-table-scroll" tabIndex={0} role="region" aria-label="ตัวอย่างเกรดถ่วงน้ำหนัก"><table className="sakura-score-table">
      <caption>คะแนนถ่วงน้ำหนักจะแสดงเมื่อให้คะแนนครบในทุกหมวดที่มีน้ำหนัก</caption>
      <thead><tr><th scope="col">นักเรียน</th>{categories.map((category, i) =>
       <th key={i} scope="col">{category.name.trim() || 'หมวด ' + (i + 1)}</th>)}
