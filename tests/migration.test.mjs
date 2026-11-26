@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {inspectLegacy,prepareLegacy,matchLegacy,planLegacyGroups,checkLegacyRegistry} from '../lib/migration.ts';
+import {inspectLegacy,prepareLegacy,matchLegacy,planLegacyGroups,checkLegacyRegistry,planEnglishTerm2} from '../lib/migration.ts';
 const example=()=>({students:{'001':{id:'001',name:'Test',level:'M2',room:'5',subject:'ENG',no:'1'},'002':{id:'002',name:'Test 2'}},assignments:{a1:{id:'a1',name:'Work',maxScore:10}},records:{a1:{'001':{score:0,submitted:true,note:'note',ts:123},'002':{score:null,submitted:false,status:'leave'}}},config:{lineToken:'secret-test-value'}});
 test('counts valid zero scores and leave separately, never exports config',()=>{const s=inspectLegacy(example());assert.equal(s.students,2);assert.equal(s.records,2);assert.equal(s.sent,1);assert.equal(s.graded,1);assert.equal(s.leave,1);assert.equal(s.notes,1);assert.equal(s.issues.length,0);assert.equal(s.roster[0].code,'001');assert.ok(!JSON.stringify(s).includes('secret-test-value'))});
 test('rejects missing structures, invalid score and orphan records',()=>{assert.throws(()=>inspectLegacy({students:{}}));const d=example();d.records.a1['001'].score=11;d.records.a1.unknown={submitted:true,score:1};assert.equal(inspectLegacy(d).issues.length,2)});
@@ -73,4 +73,38 @@ test('registry verification requires exact code, name and active state',()=>{
   {code:'003',name:'Test 3',active:false},
   {code:'999',name:'Unrelated',active:true},
  ]),{matched:1,missing:1,nameMismatch:1,inactive:1});
+});
+
+test('term 2 joins explicitly approved aliases while retaining original fields and all record details',()=>{
+ const d=example();
+ d.students={'001':{id:'001',name:'Test 1',level:'2',room:'4',subject:'ภาษาอังกฤษ 3'},'002':{id:'002',name:'Test 2',level:'2',room:'4',subject:'ถาษาอังกฤษ 3'},'003':{id:'003',name:'Test 3',level:'3',room:'4',subject:'ภาษาอังกฤษ 5'},'004':{id:'004',name:'Test 4',level:'3',room:'4',subject:'ภาษาอังกฤษ 6'}};
+ d.assignments.a1.subject='อังกฤษ';
+ d.records.a1={'001':{submitted:true,score:0,note:'note',ts:123},'002':{submitted:false,status:'leave'},'003':{submitted:true,score:4}};
+ const prepared=prepareLegacy(d),before=JSON.stringify(prepared);
+ const p=planEnglishTerm2(prepared);
+ assert.equal(p.year,2569);assert.equal(p.term,2);
+ assert.equal(p.groups.length,2);assert.equal(p.unresolved.length,0);
+ assert.deepEqual(p.groups.map(g=>[g.subject,g.students.length]),[['ภาษาอังกฤษ 4',2],['ภาษาอังกฤษ 6',2]]);
+ assert.equal(p.recordCount,3);
+ assert.equal(p.assignments[0].scopeNeedsReview,true);
+ assert.deepEqual(p.assignments[0].partitions.flatMap(x=>x.records),prepared.work[0].records);
+ assert.equal(p.assignments[0].unresolvedRecords.length,0);
+ assert.equal(JSON.stringify(prepared),before);
+});
+test('term 2 blocks unknown subjects and out-of-scope records instead of assigning them to a wrong class',()=>{
+ const d=example();
+ d.students['001']={id:'001',name:'Test 1',level:'2',room:'4',subject:'ภาษาอังกฤษ 3'};
+ d.students['002']={id:'002',name:'Test 2',level:'2',room:'5',subject:'ภาษาอังกฤษ 4'};
+ d.students['003']={id:'003',name:'Test 3',level:'3',room:'4',subject:'ภาษาอังกฤษ 4'};
+ d.assignments.a1={id:'a1',name:'Work',maxScore:10,level:'2',room:'4',subject:'ภาษาอังกฤษ 3'};
+ d.assignments.a2={id:'a2',name:'Unknown',maxScore:10,subject:'Math'};
+ d.records.a2={'001':{submitted:true,score:1}};
+ const p=planEnglishTerm2(prepareLegacy(d));
+ assert.equal(p.unresolved.length,1);
+ assert.equal(p.assignments[0].partitions.length,1);
+ assert.equal(p.assignments[0].scopeNeedsReview,false);
+ assert.equal(p.assignments[0].unresolvedRecords.length,1);
+ assert.equal(p.assignments[1].partitions.length,0);
+ assert.equal(p.assignments[1].unresolvedRecords.length,1);
+ assert.equal(p.assignments[1].scopeNeedsReview,true);
 });
