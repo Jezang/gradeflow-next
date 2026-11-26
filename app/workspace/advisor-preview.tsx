@@ -5,9 +5,12 @@ import {firebaseServices} from '../../lib/firebase';
 import {advisorPreview,confirmedRosterNumbers,type AdvisorWork} from '../../lib/advisor-preview';
 import {normalizeSheetLink} from '../../lib/sheet-link';
 import SheetSyncPreview from './sheet-sync-preview';
+import ScoreSummary from './score-summary';
+import type {ScoreSummaryRow} from '../../lib/score-summary';
 
 export default function AdvisorPreview({uid}:{uid:string}){
  const [courses,setCourses]=useState<{id:string;name:string}[]>([]),[course,setCourse]=useState(''),[busy,setBusy]=useState(false),[status,setStatus]=useState(''),[report,setReport]=useState<ReturnType<typeof advisorPreview>|null>(null);
+ const [summaryWork,setSummaryWork]=useState(''),[summaryRows,setSummaryRows]=useState<Record<string,ScoreSummaryRow[]>>({});
  const [sheetDraft,setSheetDraft]=useState(''),[sheetSaved,setSheetSaved]=useState<{key:string;url:string}|null>(null),[sheetStatus,setSheetStatus]=useState('');
  const sheetKey=course?'gradeflow:advisor-sheet:v1:'+encodeURIComponent(uid)+':'+encodeURIComponent(course):'';
  useEffect(()=>{
@@ -63,7 +66,7 @@ export default function AdvisorPreview({uid}:{uid:string}){
  }
  async function read(action:'courses'|'report'){
   if(locked.current)return;
-  locked.current=true;setBusy(true);setReport(null);setStatus('กำลังอ่านข้อมูลจากเซิร์ฟเวอร์…');
+  locked.current=true;setBusy(true);setReport(null);setSummaryRows({});setSummaryWork('');setStatus('กำลังอ่านข้อมูลจากเซิร์ฟเวอร์…');
   try{
    const {db,auth}=firebaseServices();
    const checkOwner=async()=>{
@@ -89,15 +92,21 @@ export default function AdvisorPreview({uid}:{uid:string}){
     ]);
     if(roster.size>500||works.size>40||roster.metadata.hasPendingWrites||works.metadata.hasPendingWrites)throw Error('ข้อมูลยังไม่พร้อม หรือเกินขีดจำกัด 500 นักเรียน / 40 งาน');
     const assignments:AdvisorWork[]=[];
+    const activeRoster=roster.docs.filter(r=>r.data().active===true).map(r=>({id:r.id,name:String(r.data().name)}));
+    let numbers=new Map<string,number>();
+    try{const archive=await getDocsFromServer(query(collection(db,'legacyArchives',course,'assignments'),limit(41)));if(archive.size>40||archive.metadata.hasPendingWrites)throw Error();const history:{id:string;name:string;no:unknown}[]=[];for(const a of archive.docs){const rs=await getDocsFromServer(query(collection(a.ref,'students'),limit(501)));if(rs.size>500||rs.metadata.hasPendingWrites)throw Error();for(const row of rs.docs)history.push({id:row.id,name:String(row.data().name??''),no:row.data().no})}numbers=confirmedRosterNumbers(activeRoster,history)}catch{/* No confirmed number: score-only copy remains disabled. */}
+    const summaries:Record<string,ScoreSummaryRow[]>={};
     for(const w of works.docs){
      const records=await getDocsFromServer(query(collection(w.ref,'submissions'),limit(501)));
      if(records.size>500||records.metadata.hasPendingWrites)throw Error('ข้อมูลคะแนนยังไม่พร้อมหรือเกินขีดจำกัด');
+     const byId=new Map(records.docs.map(r=>[r.id,r.data()]));
+     summaries[w.id]=activeRoster.map(r=>{const rec=byId.get(r.id),legacy=rec?.auditId?null:rec?.legacy?.status;return {...r,no:numbers.get(r.id),submitted:rec?.submitted===true,score:rec?.submitted===true&&typeof rec.score==='number'?rec.score:null,attendance:legacy==='leave'||legacy==='absent'?legacy:undefined}});
      const d=w.data();
      assignments.push({id:w.id,title:String(d.title),maxScore:d.maxScore,active:d.active,records:records.docs.map(r=>({id:r.id,score:r.data().score,submitted:r.data().submitted}))});
     }
     const result=advisorPreview(roster.docs.map(r=>({id:r.id,name:String(r.data().name),active:r.data().active})),assignments);
     await checkOwner();
-    setReport(result);setStatus('อ่านข้อมูลสำเร็จ · ไม่ได้แก้ไขคะแนนหรือเผยแพร่รายงาน');
+    setSummaryRows(summaries);setSummaryWork(result.works[0]?.id??'');setReport(result);setStatus('อ่านข้อมูลสำเร็จ · ไม่ได้แก้ไขคะแนนหรือเผยแพร่รายงาน');
    }
   }catch(e){setReport(null);setStatus(e instanceof Error?e.message:'อ่านข้อมูลไม่ได้')}
   finally{locked.current=false;setBusy(false)}
@@ -125,6 +134,8 @@ export default function AdvisorPreview({uid}:{uid:string}){
   </div>}
   <p role="status" aria-live="polite">{status}</p>
   {report&&<><div className="checking-counts"><span>นักเรียน<strong>{report.students.length}</strong></span><span>งานที่เปิดใช้<strong>{report.works.length}</strong></span><span>นักเรียนมีงานยังไม่ส่ง<strong>{report.students.filter(s=>s.missing>0).length}</strong></span></div>
+  <div className="filters"><label>เลือกงานเพื่อสรุปและคัดลอกคะแนน<select value={summaryWork} onChange={e=>setSummaryWork(e.target.value)}>{report.works.map(w=><option key={w.id} value={w.id}>{w.title} ({w.maxScore})</option>)}</select></label></div>
+  {report.works.filter(w=>w.id===summaryWork).map(w=><ScoreSummary key={course+'_'+w.id} rows={summaryRows[w.id]??[]} title={w.title} maxScore={w.maxScore} allowExport/>)}
   <p>คะแนนสะสมเฉพาะงานที่ตรวจแล้ว ไม่ใช่เกรดสุดท้าย · 0 คือคะแนนจริง · รอคะแนนและยังไม่ส่งไม่ใช่ศูนย์</p>
   <div className="score-table-scroll" role="region" aria-label="รายงานคะแนนตัวอย่าง" tabIndex={0}><table><thead><tr><th>นักเรียน</th><th>คะแนนสะสม</th><th>ยังไม่ส่ง</th><th>รอคะแนน</th>{report.works.map(w=><th key={w.id}>{w.title} ({w.maxScore})</th>)}</tr></thead><tbody>{report.students.map(s=><tr key={s.id}><td>{s.name}<br/><small>{s.id}</small></td><td>{s.graded?s.points+' / '+s.possible:'—'}</td><td>{s.missing}</td><td>{s.pending}</td>{s.cells.map(c=><td key={c.workId}>{c.state==='graded'?c.score:c.state==='pending'?'รอคะแนน':'ยังไม่ส่ง'}</td>)}</tr>)}</tbody></table></div>
   <small>รายงานอ่านหลายชุดข้อมูล ไม่ใช่ภาพถ่าย ณ เวลาเดียวกัน ควรหยุดแก้คะแนนขณะตรวจรับ</small></>}
