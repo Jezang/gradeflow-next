@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {inspectLegacy,prepareLegacy,matchLegacy,planLegacyGroups,checkLegacyRegistry,planEnglishTerm2,resolveTerm2Master} from '../lib/migration.ts';
+import {inspectLegacy,prepareLegacy,matchLegacy,planLegacyGroups,checkLegacyRegistry,planEnglishTerm2,resolveTerm2Master,planTerm2Archives} from '../lib/migration.ts';
 const example=()=>({students:{'001':{id:'001',name:'Test',level:'M2',room:'5',subject:'ENG',no:'1'},'002':{id:'002',name:'Test 2'}},assignments:{a1:{id:'a1',name:'Work',maxScore:10}},records:{a1:{'001':{score:0,submitted:true,note:'note',ts:123},'002':{score:null,submitted:false,status:'leave'}}},config:{lineToken:'secret-test-value'}});
 test('counts valid zero scores and leave separately, never exports config',()=>{const s=inspectLegacy(example());assert.equal(s.students,2);assert.equal(s.records,2);assert.equal(s.sent,1);assert.equal(s.graded,1);assert.equal(s.leave,1);assert.equal(s.notes,1);assert.equal(s.issues.length,0);assert.equal(s.roster[0].code,'001');assert.ok(!JSON.stringify(s).includes('secret-test-value'))});
 test('rejects missing structures, invalid score and orphan records',()=>{assert.throws(()=>inspectLegacy({students:{}}));const d=example();d.records.a1['001'].score=11;d.records.a1.unknown={submitted:true,score:1};assert.equal(inspectLegacy(d).issues.length,2)});
@@ -117,4 +117,21 @@ test('term 2 master resolver reuses unique active names and blocks conflicts',()
  assert.throws(()=>resolveTerm2Master([{...row,active:false}],'room-m2-4','ม.2/4'));
  assert.throws(()=>resolveTerm2Master([{...row,id:'room-m2-4',code:'room-m2-4',name:'ห้องอื่น'}],'room-m2-4','ม.2/4'));
  assert.equal(resolveTerm2Master([{...row,name:'2569/2'}],'term-2569-2','ปีการศึกษา 2569 ภาคเรียน 2',['2569/2']).id,'old-room');
+});
+
+test('term 2 archive keeps original metadata and records without inventing missing submissions',()=>{
+ const d=example();
+ d.students={'001':{id:'001',name:'Test 1',level:'2',room:'4',subject:'ภาษาอังกฤษ 3'},'002':{id:'002',name:'Test 2',level:'2',room:'4',subject:'ถาษาอังกฤษ 3'},'003':{id:'003',name:'Test 3',level:'3',room:'4',subject:'ภาษาอังกฤษ 5'}};
+ d.assignments.a1.subject='อังกฤษ';
+ d.records.a1={'001':{submitted:true,score:0,note:'note',ts:123},'003':{submitted:false,status:'leave'}};
+ const p=planTerm2Archives(prepareLegacy(d));
+ assert.equal(p.recordCount,2);assert.equal(p.workCount,1);assert.equal(p.items.length,2);
+ assert.equal(p.items[0].work.subject,'อังกฤษ');
+ assert.equal(p.items[0].students[0].value.record.score,0);
+ assert.equal(p.items[0].students[1].value.record,null);
+ assert.equal(p.items[0].needsScopeConfirmation,true);
+ assert.equal(p.items[1].students[0].value.record.status,'leave');
+ assert.equal(p.items[1].needsScopeConfirmation,false);
+ d.assignments.a1.room='9';
+ assert.throws(()=>planTerm2Archives(prepareLegacy(d)));
 });
