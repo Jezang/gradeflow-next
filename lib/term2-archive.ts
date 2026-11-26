@@ -1,5 +1,5 @@
 import {collection,doc,getDocFromServer,getDocsFromServer,query,limit,runTransaction,serverTimestamp,type Firestore,type DocumentReference,type DocumentData} from 'firebase/firestore';
-import {planTerm2Archives,type prepareLegacy} from './migration';
+import {planTerm2Archives,compareTerm2LiveRecords,type prepareLegacy} from './migration';
 import {previewTerm2Setup} from './term2-setup';
 type Prepared=ReturnType<typeof prepareLegacy>;
 type Item=ReturnType<typeof planTerm2Archives>['items'][number];
@@ -124,4 +124,28 @@ export async function promoteTerm2Batch(db:Firestore,uid:string,prepared:Prepare
   done+=item.recordCount;progress('เปิดใช้และตรวจคะแนนแล้ว '+done+' รายการ');
  }
  return {records:done,groups:targets.length};
+}
+
+export async function auditTerm2Migration(db:Firestore,uid:string,prepared:Prepared,progress:(text:string)=>void){
+ const batch=await previewTerm2ArchiveBatch(db,uid,prepared);
+ const details=[];
+ for(const {item,courseId,complete} of batch.targets){
+  const target=liveRef(db,courseId,item);
+  const [work,stored]=await Promise.all([getDocFromServer(target),rows(target,'submissions')]);
+  if(work.metadata.hasPendingWrites)throw Error('ยังมีการบันทึกงานค้างอยู่');
+  const original=item.students.flatMap(s=>s.value.record?[s.value.record]:[]);
+  const counts=compareTerm2LiveRecords(original,stored.map(d=>({id:d.id,data:d.data()})));
+  const data=work.data();
+  const state=!work.exists()?(stored.length?'conflict':'archiveOnly'):!data||!same(data,meta(item))||data.createdBy!==uid?'conflict':data.active===true&&data.importPending===false?'active':data.active===false&&data.importPending===true?'pending':data.active===false&&data.importPending===false?'inactive':'conflict';
+  details.push({key:item.key,room:item.room,title:item.work.title,recordCount:item.recordCount,archiveComplete:complete,state,counts});
+  progress('ตรวจแล้ว '+details.length+' / '+batch.targets.length+' กลุ่มงาน');
+ }
+ const totals=details.reduce((acc,x)=>{
+  if(x.archiveComplete)acc.archived+=x.recordCount;
+  if(x.state==='active'){acc.activeExpected+=x.recordCount;acc.activeExact+=x.counts.exact;acc.activeChanged+=x.counts.changed;acc.activeMissing+=x.counts.missing;acc.activeLegacyMismatch+=x.counts.legacyMismatch;acc.activeAdditional+=x.counts.additional}
+  else if(x.state==='archiveOnly')acc.archiveOnly+=x.recordCount;
+  else acc.other+=x.recordCount;
+  return acc;
+ },{archived:0,activeExpected:0,activeExact:0,activeChanged:0,activeMissing:0,activeLegacyMismatch:0,activeAdditional:0,archiveOnly:0,other:0});
+ return {details,totals,recordCount:batch.recordCount,workCount:batch.workCount,studentCount:batch.studentCount,checkedAt:new Date().toISOString()};
 }
