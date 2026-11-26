@@ -1,9 +1,30 @@
 type Obj=Record<string,unknown>;
 function obj(x:unknown):Obj|null{return x!==null&&typeof x==='object'&&!Array.isArray(x)?x as Obj:null}
+// Accept either the original flat backup or a single Apps Script payload envelope.
+// Never merge competing roots, fabricate missing maps, or return unrelated metadata.
+function legacyRoot(raw:unknown){
+ const outer=obj(raw);if(!outer)throw Error('ไฟล์ JSON ไม่ใช่ข้อมูลระบบเดิม');
+ const keys=['students','assignments','records'] as const;
+ const own=(value:Obj,key:string)=>Object.hasOwn(value,key);
+ const flat=keys.some(key=>own(outer,key));
+ let root=outer;
+ if(own(outer,'payload')){
+  if(flat)throw Error('พบข้อมูลทั้งระดับหลักและ payload กรุณาตรวจสอบไฟล์สำรอง');
+  let payload=outer.payload;
+  if(typeof payload==='string'){
+   try{payload=JSON.parse(payload)}catch{throw Error('payload ไม่ใช่ JSON ที่ถูกต้อง')}
+  }
+  const nested=obj(payload);if(!nested)throw Error('payload ไม่ใช่ข้อมูลระบบเดิม');
+  root=nested;
+ }
+ const students=own(root,'students')?obj(root.students):null;
+ const assignments=own(root,'assignments')?obj(root.assignments):null;
+ const records=own(root,'records')?obj(root.records):null;
+ if(!students||!assignments||!records)throw Error('ไม่พบ students, assignments หรือ records ในไฟล์สำรองหรือ payload');
+ return {students,assignments,records};
+}
 export function inspectLegacy(raw:unknown){
- const root=obj(raw);if(!root)throw Error('ไฟล์ JSON ไม่ใช่ข้อมูลระบบเดิม');
- const students=obj(root.students),assignments=obj(root.assignments),records=obj(root.records);
- if(!students||!assignments||!records)throw Error('ไม่พบ students, assignments หรือ records');
+ const {students,assignments,records}=legacyRoot(raw);
  const issues:string[]=[],roster:{code:string;name:string;level:string;room:string;subject:string;no:string}[]=[];
  const groups=new Map<string,number>();let total=0,sent=0,graded=0,leave=0,absent=0,notes=0;
  const field=(x:unknown)=>typeof x==='string'||typeof x==='number'?String(x).trim():'';
@@ -17,7 +38,7 @@ export type LegacyRecord={studentId:string;submitted:boolean;score:number|null;s
 export type LegacyAssignment={id:string;title:string;maxScore:number;due:string;level:string;room:string;subject:string;records:LegacyRecord[]};
 export function prepareLegacy(raw:unknown){
  const summary=inspectLegacy(raw);if(summary.issues.length)throw Error('แก้ไขข้อผิดพลาดจากผลตรวจไฟล์ก่อน');
- const root=obj(raw)!,assignments=obj(root.assignments)!,records=obj(root.records)!;
+ const {assignments,records}=legacyRoot(raw);
  const text=(v:unknown,max:number)=>{if(v==null)return '';if(typeof v!=='string'&&typeof v!=='number')throw Error('พบข้อมูลข้อความไม่ถูกต้อง');const s=String(v);if(s.length>max)throw Error('ข้อความยาวเกินขอบเขต');return s};
  const work:LegacyAssignment[]=Object.entries(assignments).map(([id,value])=>{
   const a=obj(value)!;if(!/^[A-Za-z0-9_-]{1,100}$/.test(id))throw Error('รหัสงานไม่รองรับ');
