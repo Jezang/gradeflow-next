@@ -131,3 +131,23 @@ test('export roster numbers use only matching nonconflicting history',()=>{
  const history=[{id:'a',name:'A',no:'01'},{id:'a',name:'A',no:1},{id:'b',name:'B',no:2},{id:'b',name:'B',no:3},{id:'c',name:'C',no:4},{id:'d',name:'D',no:4},{id:'e',name:'Wrong',no:5}];
  assert.deepEqual([...confirmedRosterNumbers(roster,history)],[['a',1]]);
 });
+
+import {scoreColumn,summarizeScores,summaryState} from '../lib/score-summary.ts';
+const summaryRows=[
+ {id:'s4',name:'D',no:4,submitted:false,score:null,attendance:'absent'},
+ {id:'s1',name:'A',no:1,submitted:false,score:null},
+ {id:'s2',name:'B',no:2,submitted:true,score:0},
+ {id:'s3',name:'C',no:3,submitted:true,score:null},
+ {id:'s5',name:'E',no:5,submitted:false,score:null,attendance:'leave'}
+];
+test('summary distinguishes zero, pending, missing, leave and absence',()=>{
+ assert.deepEqual(summarizeScores(summaryRows),{graded:1,pending:1,missing:1,leave:1,absent:1,total:5,submitted:2,average:0});
+ assert.equal(summaryState({...summaryRows[0],submitted:true,score:2}),'graded');
+});
+test('score-only clipboard preserves leading and trailing blank rows, orders by confirmed number and rejects gaps',()=>{
+ const out=scoreColumn(summaryRows);
+ assert.equal(out.count,5);assert.equal(out.plain,'\n0\n\n\n');
+ assert.equal(out.html,'<table><tbody><tr><td></td></tr><tr><td>0</td></tr><tr><td></td></tr><tr><td></td></tr><tr><td></td></tr></tbody></table>');
+ assert.throws(()=>scoreColumn(summaryRows.slice(1)));assert.throws(()=>scoreColumn(summaryRows.map(r=>({...r,no:1}))));
+ assert.throws(()=>scoreColumn(summaryRows.map(r=>({...r,no:undefined}))));
+});
