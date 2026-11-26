@@ -398,3 +398,29 @@
  .teacher-hub .advisor-sheet-link small{line-height:1.6}
  .teacher-hub .advisor-sheet-link p{margin:0}
 }
+
+@media screen{
+ .teacher-hub .modern-label-grid .student-label{padding:12px;gap:9px;background:var(--garden-card);color:var(--garden-ink);border-radius:12px;min-width:0}
+ .teacher-hub .modern-label-grid .label-picked{border-color:#65a98a;box-shadow:inset 0 0 0 1px #65a98a}
+ .teacher-hub .label-course{display:flex;align-items:center;justify-content:space-between;gap:6px;width:100%;padding:7px;box-sizing:border-box;background:var(--sakura-soft);color:var(--garden-ink);border-radius:7px;font-size:12px;font-weight:700;overflow-wrap:anywhere}
+ .teacher-hub .label-course span{white-space:nowrap}
+ .teacher-hub .label-meta{display:flex;justify-content:space-between;gap:6px;flex-wrap:wrap;width:100%;font-size:12px;color:var(--garden-muted)}
+ .teacher-hub .modern-label-grid .student-label img{background:white;padding:4px;box-sizing:border-box;border-radius:5px;max-width:100%}
+ .teacher-hub .worksheet-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.5fr);gap:16px;align-items:start}
+ .teacher-hub .worksheet-controls{display:grid;gap:12px;min-width:0}
+ .teacher-hub .worksheet-controls label{margin:0}
+ .teacher-hub .worksheet-controls input:not([type=checkbox]),.teacher-hub .worksheet-controls select{width:100%;box-sizing:border-box}
+ .teacher-hub .worksheet-check{display:flex;gap:8px;align-items:center}
+ .teacher-hub .worksheet-check input{min-height:0;width:auto}
+ .teacher-hub .worksheet-preview{display:grid;place-items:center;min-width:0;padding:10px;background:var(--garden-bg);border:1px solid var(--garden-border);border-radius:12px}
+ .teacher-hub .worksheet-page{position:relative;width:100%;max-width:700px;line-height:0;box-shadow:0 2px 10px #0002}
+ .teacher-hub .worksheet-paper{display:block;width:100%;height:auto}
+ .teacher-hub .worksheet-code{position:absolute;object-fit:contain;touch-action:none;cursor:grab;outline:2px dashed #25845d;user-select:none}
+ .teacher-hub .worksheet-placeholder{display:grid;gap:12px;justify-items:center;text-align:center;padding:30px 10px;line-height:1.5}
+ @media(max-width:720px){.teacher-hub .worksheet-grid{grid-template-columns:minmax(0,1fr)}}
+}
+@media print{
+ .modern-label-grid .student-label{background:white!important;color:black!important;border:1px solid #777!important;box-shadow:none!important;padding:7px!important}
+ .modern-label-grid .label-course,.modern-label-grid .label-meta{display:flex;justify-content:space-between;gap:5px;width:100%;font-size:10px;color:black!important}
+ .modern-label-grid .student-label img{max-width:100%;background:white}
+}
