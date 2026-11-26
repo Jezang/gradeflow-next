@@ -1,6 +1,6 @@
 // Run with Node 22+ while the LOCAL dev server is running.
 // No npm dependencies, browser download, Firebase authentication or writes.
-import {spawn} from 'node:child_process';
+import {spawn,execFileSync} from 'node:child_process';
 import {existsSync} from 'node:fs';
 import {mkdtemp,readFile,writeFile,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
@@ -15,6 +15,8 @@ const output=await mkdtemp(join(tmpdir(),'sakura-visual-'));
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 let child,ws;
 const results=[],errors=[];
+const git=(...args)=>execFileSync('git',args,{encoding:'utf8'}).trim();
+const evidence={head:git('rev-parse','HEAD'),workingTreeClean:git('status','--porcelain')==='',browser:null};
 let serial=0;
 const pending=new Map();
 async function waitFor(fn,label,timeout=60000){
@@ -88,6 +90,7 @@ try{
   }
   if(m.method==='Runtime.exceptionThrown')errors.push('Browser exception: '+(m.params.exceptionDetails.text||'unknown'));
  });
+ evidence.browser=(await send('Browser.getVersion')).product;
  await send('Page.enable');await send('Runtime.enable');await send('Fetch.enable',{patterns:[{urlPattern:'*'}]});
  await send('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'reduce'}]});
  for(const width of [1440,1280,800,768,390,320]){
@@ -103,6 +106,7 @@ try{
   if(width<=850)await evaluate('document.querySelector(".hub-menu-toggle").click()');
   await clickText('aside nav button','ตั้งค่า');await waitFor(()=>has('.demo-theme-options'),'settings');
   await capture(width,'settings');
+  if(width<=850){const gap=await evaluate('(()=>{const sidebar=document.querySelector(".hub-sidebar"),brand=document.querySelector(".hub-brand-row");return Math.round(sidebar.getBoundingClientRect().height-brand.getBoundingClientRect().height)})()');results.push({width,name:'collapsed sidebar has no excess blank space',pass:gap>=0&&gap<=36,gap});}
   await evaluate('document.querySelector(".theme-mint").click()');
   await waitFor(()=>has('.teacher-hub.mint'),'mint theme');
   await capture(width,'mint-settings');
@@ -110,6 +114,8 @@ try{
   await waitFor(()=>has('.teacher-hub.night'),'night theme');
   await capture(width,'night-settings');
   await view('ภาพรวม','.hub-kpis');await capture(width,'night-dashboard');
+  const gardenVisible=await evaluate('getComputedStyle(document.querySelector(".hub-garden-hero")).backgroundImage.includes("sakura-garden.svg")');
+  results.push({width,name:'night dashboard keeps garden artwork',pass:gardenVisible});
   if(width===390){
    await view('ตรวจงาน','.demo-gradebook');
    await capture(width,'night-gradebook');
@@ -133,7 +139,7 @@ finally{
  if(ws)ws.close();
  if(child){child.kill();await Promise.race([new Promise(r=>child.once('exit',r)),sleep(1500)])}
  await rm(profile,{recursive:true,force:true,maxRetries:3}).catch(()=>{});
- await writeFile(join(output,'result.json'),JSON.stringify({results,errors},null,2));
- console.log(JSON.stringify({output,passed:results.filter(r=>r.pass).length,total:results.length,errors},null,2));
+ await writeFile(join(output,'result.json'),JSON.stringify({evidence,results,errors},null,2));
+ console.log(JSON.stringify({output,evidence,passed:results.filter(r=>r.pass).length,total:results.length,errors},null,2));
  if(!results.length||results.some(r=>!r.pass)||errors.length)process.exitCode=1;
 }
