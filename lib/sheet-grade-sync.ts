@@ -29,3 +29,27 @@ export function planSheetGradeSync(input:{direction:SyncDirection;webMax:number;
   return {...base,state:'skip' as const};
  });
 }
+
+export type SheetColumn={column:number;label:string;maxScore:number};
+export function sheetScoreColumns(headers:unknown[][],formulaColumns:number[]):SheetColumn[]{
+ if(headers.length!==4)throw Error('ต้องมีหัวตาราง 4 แถว');
+ const blocked=new Set(formulaColumns);
+ const result:SheetColumn[]=[];
+ let section='',topic='';
+ for(let i=3;i<headers[3].length;i++){
+  const col=i+1;
+  const a=String(headers[0][i]??'').trim(),b=String(headers[1][i]??'').trim(),c=String(headers[2][i]??'').trim();
+  if(a){section=a;topic=''}
+  if(b)topic=b;
+  const max=headers[3][i];
+  if(blocked.has(col)||!topic||/รวม|เกรด/.test(section+' '+topic+' '+c)||typeof max!=='number'||!Number.isFinite(max)||max<=0)continue;
+  result.push({column:col,label:[section,topic,c].filter(Boolean).join(' · '),maxScore:max});
+ }
+ return result;
+}
+export function proposeSheetMatches(web:{studentId:string;name:string}[],sheet:{row:number;name:string}[]):ConfirmedMatch[]{
+ const a=web.map(x=>({...x,key:normalize(x.name)})),b=sheet.map(x=>({...x,key:normalize(x.name)}));
+ if(a.length!==b.length||new Set(a.map(x=>x.key)).size!==a.length||new Set(b.map(x=>x.key)).size!==b.length||a.some(x=>!x.key)||b.some(x=>!x.key))throw Error('จำนวนหรือชื่อซ้ำ ไม่สามารถจับคู่อัตโนมัติได้');
+ const names=new Map(b.map(x=>[x.key,x]));
+ return a.map(x=>{const found=names.get(x.key);if(!found)throw Error('ชื่อไม่ตรง กรุณาตรวจสอบรายชื่อทั้งสองระบบ');return {studentId:x.studentId,row:found.row,name:x.name}});
+}
