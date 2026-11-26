@@ -44,9 +44,10 @@ service cloud.firestore {
   function advisorCourse(cid){return course(cid).active == true && advisorForRoom(course(cid).roomId);}
   match /advisorAssignments/{uid}/rooms/{roomId} {
    allow read: if owner() || (own(uid) && staff());
-   allow create, update: if owner() && activeRecord('profiles',uid)
+   allow create, update: if owner()
+     && (request.resource.data.active == false || (activeRecord('profiles',uid)
      && get(/databases/$(database)/documents/profiles/$(uid)).data.role == 'teacher'
-     && activeRecord('rooms',roomId)
+     && activeRecord('rooms',roomId)))
      && request.resource.data.keys().hasOnly(['roomId','active','updatedBy','updatedAt'])
      && request.resource.data.roomId == roomId && request.resource.data.active is bool
      && request.resource.data.updatedBy == request.auth.uid && request.resource.data.updatedAt == request.time;

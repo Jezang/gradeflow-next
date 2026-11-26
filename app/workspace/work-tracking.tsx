@@ -4,7 +4,8 @@ import {collection,doc,onSnapshot,query,limit,runTransaction,serverTimestamp,Tim
 import {firebaseServices} from '../../lib/firebase';
 import {attendanceFor,attendanceLabels,bangkokInput,deadlineLabels,deadlineState,timestampMillis,validateDeadlines,type Attendance} from '../../lib/work-tracking';
 
-export function useAttendance(course:string,work:string){
+type AttendanceSnapshot={key:string;ready:boolean;values:Record<string,Attendance>;error:boolean};
+export function useAttendance(course:string,work:string):AttendanceSnapshot{
  const key=course+'/'+work;
  const [state,setState]=useState<{key:string;ready:boolean;values:Record<string,Attendance>;error:boolean}>({key:'',ready:false,values:{},error:false});
  useEffect(()=>{
@@ -12,7 +13,7 @@ export function useAttendance(course:string,work:string){
   const ref=collection(firebaseServices().db,'teachingAssignments',course,'work',work,'attendance');
   return onSnapshot(query(ref,limit(501)),{includeMetadataChanges:true},s=>{
    const ready=!s.metadata.fromCache&&!s.metadata.hasPendingWrites&&s.size<=500;
-   const values:Record<string,Attendance>={};if(ready)for(const d of s.docs){const status=d.data().status;if(status==='missing'||status==='leave'||status==='absent')values[d.id]=status;}
+   const values:Record<string,Attendance>=Object.create(null);if(ready)for(const d of s.docs){const status=d.data().status;if(status==='missing'||status==='leave'||status==='absent')values[d.id]=status;}
    setState({key,ready,values,error:s.size>500});
   },()=>setState({key,ready:false,values:{},error:true}));
  },[course,work,key]);
