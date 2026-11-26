@@ -1,3 +1,4 @@
+import {codeBox} from '../lib/worksheet-placement.ts';
 import {planSheetGradeSync,sheetScoreColumns,proposeSheetMatches} from '../lib/sheet-grade-sync.ts';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
@@ -94,4 +95,12 @@ test('four-row sheet headers preserve nested labels, fractions and exclude total
  assert.deepEqual(proposeSheetMatches(web,[{row:5,name:'C'},{row:6,name:'A  B'}]).map(x=>x.row),[6,5]);
  assert.throws(()=>proposeSheetMatches(web,[{row:5,name:'C'},{row:6,name:'C'}]));
  assert.throws(()=>proposeSheetMatches(web,[{row:5,name:'C'}]));
+});
+
+test('worksheet placement stays on page and preserves code aspect ratio',()=>{
+ const b=codeBox(600,800,2,{x:.95,y:.95,width:.3});
+ assert.equal(b.width,180);assert.equal(b.height,90);assert.equal(b.left,420);assert.equal(b.y,0);
+ const tall=codeBox(600,200,.5,{x:-1,y:-1,width:1});
+ assert.equal(tall.width,100);assert.equal(tall.height,200);assert.equal(tall.left,0);assert.equal(tall.y,0);
+ assert.throws(()=>codeBox(600,800,0,{x:0,y:0,width:.2}));
 });
