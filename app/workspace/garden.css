@@ -303,3 +303,49 @@
  .demo-theme-selected{font-size:12px;font-weight:650;color:var(--sakura-accent)}
  @media(max-width:550px){.teacher-hub .demo-theme-options{grid-template-columns:minmax(0,1fr)}.teacher-hub .demo-theme-option{grid-template-columns:80px 1fr;align-items:center}.demo-theme-swatch{grid-row:span 3}.demo-theme-option strong,.demo-theme-option small,.demo-theme-selected{grid-column:2}}
 }
+
+/* Minimal checking and label studio, preserving the existing Sakura themes. */
+@media screen{
+ .teacher-hub .checking-selectors{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+ .teacher-hub .checking-selectors label{min-width:0}
+ .teacher-hub .checking-selectors select{width:100%;min-width:0}
+ .teacher-hub .checking-tools{padding:12px 18px}
+ .teacher-hub .checking-tools summary{cursor:pointer;font-weight:650;list-style-position:inside;padding:5px 0;color:var(--garden-ink)}
+ .teacher-hub .checking-tools[open] summary{margin-bottom:12px}
+ .teacher-hub .checking-management{display:grid;gap:10px}
+ .teacher-hub .checking-management>.panel{margin:0;box-shadow:none}
+ .teacher-hub .checking-counts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:12px 0}
+ .teacher-hub .checking-counts span{display:grid;gap:3px;padding:10px 14px;border-radius:12px;background:var(--sakura-soft);font-size:12px}
+ .teacher-hub .checking-counts span:nth-child(2){background:var(--sakura-mint)}
+ .teacher-hub .checking-counts strong{font-size:24px;font-variant-numeric:tabular-nums}
+ .teacher-hub .checking-layout{display:flex;gap:6px;margin:10px 0}
+ .teacher-hub .checking-layout button[aria-pressed="true"]{background:var(--sakura-soft);border-color:var(--sakura-accent);color:var(--sakura-accent)}
+ .teacher-hub .checking-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,215px),1fr));gap:8px}
+ .teacher-hub .checking-card{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0;padding:10px;border:1px solid var(--garden-border);border-radius:13px;background:var(--garden-card)}
+ .teacher-hub .checking-card.received{border-color:#81bca0;background:var(--sakura-mint)}
+ .teacher-hub .checking-card.missing{border-color:var(--garden-border)}
+ .teacher-hub .checking-card-info{display:grid;gap:4px;min-width:0;flex:1}
+ .teacher-hub .checking-card-info strong{font-size:13px;overflow-wrap:anywhere;line-height:1.4}
+ .teacher-hub .checking-card-info small{font-size:12px;line-height:1.4}
+ .teacher-hub .checking-card .checking-mark{width:40px;height:40px;min-width:40px;padding:0;border-radius:12px;font-size:20px;font-weight:700}
+ .teacher-hub .checking-card.received .checking-mark{color:var(--garden-ink);background:var(--garden-card)}
+ .teacher-hub .label-selection-tools{display:flex;align-items:end;flex-wrap:wrap;gap:8px;margin:12px 0}
+ .teacher-hub .modern-label-grid{grid-template-columns:repeat(auto-fill,minmax(min(100%,200px),1fr));gap:12px}
+ .teacher-hub .modern-label-grid .student-label{position:relative;padding:12px;display:grid;gap:8px;justify-items:center;border:1px solid var(--garden-border);border-radius:14px;background:var(--garden-card)}
+ .teacher-hub .modern-label-grid .label-picked{border-color:var(--sakura-accent)}
+ .teacher-hub .modern-label-grid .label-filtered{display:none}
+ .teacher-hub .label-check{justify-self:start;display:flex;align-items:center;gap:6px;margin:0;font-size:12px}
+ .teacher-hub .label-check input{width:auto;min-height:0;accent-color:var(--sakura-accent)}
+ @media(max-width:550px){
+  .teacher-hub .checking-selectors{grid-template-columns:1fr;gap:8px}
+  .teacher-hub .checking-counts span{padding:8px}
+  .teacher-hub .checking-counts strong{font-size:20px}
+  .teacher-hub .checking-cards{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+  .teacher-hub .checking-card{padding:8px;align-items:flex-start;flex-direction:column}
+  .teacher-hub .checking-card .checking-mark{align-self:flex-end}
+ }
+}
+@media print{
+ .modern-label-grid .label-check,.modern-label-grid .label-unpicked{display:none!important}
+ .modern-label-grid .label-picked{display:grid!important}
+}
