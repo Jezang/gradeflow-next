@@ -219,3 +219,9 @@
   .teacher-hub .champions-panel .sakura-animal-badge{width:36px;height:36px}
  }
 }
+
+@media screen {
+ .teacher-hub .hub-brand-mark{padding:3px}
+ .teacher-hub .hub-brand-mark .sakura-animal{width:100%;height:100%}
+ .teacher-hub .tile .sakura-icon{color:var(--sakura-accent)}
+}
