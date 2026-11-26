@@ -7,6 +7,7 @@ import {normalizeSheetLink} from '../../lib/sheet-link';
 import SheetSyncPreview from './sheet-sync-preview';
 import ScoreSummary from './score-summary';
 import type {ScoreSummaryRow} from '../../lib/score-summary';
+import {attendanceFor} from '../../lib/work-tracking';
 
 export default function AdvisorPreview({uid}:{uid:string}){
  const [courses,setCourses]=useState<{id:string;name:string}[]>([]),[course,setCourse]=useState(''),[busy,setBusy]=useState(false),[status,setStatus]=useState(''),[report,setReport]=useState<ReturnType<typeof advisorPreview>|null>(null);
@@ -99,8 +100,11 @@ export default function AdvisorPreview({uid}:{uid:string}){
     for(const w of works.docs){
      const records=await getDocsFromServer(query(collection(w.ref,'submissions'),limit(501)));
      if(records.size>500||records.metadata.hasPendingWrites)throw Error('ข้อมูลคะแนนยังไม่พร้อมหรือเกินขีดจำกัด');
+     const attendance=await getDocsFromServer(query(collection(w.ref,'attendance'),limit(501)));
+     if(attendance.size>500||attendance.metadata.hasPendingWrites)throw Error('สถานะลา/ขาดยังไม่พร้อม');
+     const manual=new Map(attendance.docs.map(r=>[r.id,r.data().status]));
      const byId=new Map(records.docs.map(r=>[r.id,r.data()]));
-     summaries[w.id]=activeRoster.map(r=>{const rec=byId.get(r.id),legacy=rec?.auditId?null:rec?.legacy?.status;return {...r,no:numbers.get(r.id),submitted:rec?.submitted===true,score:rec?.submitted===true&&typeof rec.score==='number'?rec.score:null,attendance:legacy==='leave'||legacy==='absent'?legacy:undefined}});
+     summaries[w.id]=activeRoster.map(r=>{const rec=byId.get(r.id),legacy=rec?.auditId?null:rec?.legacy?.status;return {...r,no:numbers.get(r.id),submitted:rec?.submitted===true,score:rec?.submitted===true&&typeof rec.score==='number'?rec.score:null,attendance:attendanceFor(rec?.submitted===true,manual.get(r.id),legacy)}});
      const d=w.data();
      assignments.push({id:w.id,title:String(d.title),maxScore:d.maxScore,active:d.active,records:records.docs.map(r=>({id:r.id,score:r.data().score,submitted:r.data().submitted}))});
     }
