@@ -124,3 +124,10 @@ test('roster review handles Thai titles and spacing, shows partial matches and r
  const duplicates=reviewSheetMatches([{studentId:'a',name:'นาย A'},{studentId:'b',name:'A'}],[{row:5,name:'A'},{row:6,name:'A'}]);
  assert.equal(duplicates.matches.length,0);
 });
+
+import {confirmedRosterNumbers} from '../lib/advisor-preview.ts';
+test('export roster numbers use only matching nonconflicting history',()=>{
+ const roster=[{id:'a',name:'A'},{id:'b',name:'B'},{id:'c',name:'C'},{id:'d',name:'D'},{id:'e',name:'E'}];
+ const history=[{id:'a',name:'A',no:'01'},{id:'a',name:'A',no:1},{id:'b',name:'B',no:2},{id:'b',name:'B',no:3},{id:'c',name:'C',no:4},{id:'d',name:'D',no:4},{id:'e',name:'Wrong',no:5}];
+ assert.deepEqual([...confirmedRosterNumbers(roster,history)],[['a',1]]);
+});
