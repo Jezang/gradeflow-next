@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { summarizeWeightedGrades, weightedGradePreview } from '../lib/weighted-grade-preview.ts';
 import { previewBulkRoster } from '../lib/bulk-roster-preview.ts';
+import { parseQuickScore } from '../lib/quick-score.ts';
 
 const students = [{ id: 'TEST001', name: 'Synthetic One' }, { id: 'TEST002', name: 'Synthetic Two' }];
 const works = [
@@ -65,4 +66,16 @@ test('bulk preview fails closed for ambiguous master or roster IDs without hidin
   { id: 'TEST001', status: 'unavailable' },
   { id: 'TEST002', name: 'Synthetic Two', status: 'new' },
  ]);
+});
+
+
+test('quick score preserves zero and blank and rejects invalid maximums or score drafts', () => {
+ assert.deepEqual(parseQuickScore('0', 10), {ok: true, value: 0});
+ assert.deepEqual(parseQuickScore('  ', 10), {ok: true, value: null});
+ assert.deepEqual(parseQuickScore('7.5', 10), {ok: true, value: 7.5});
+ assert.deepEqual(parseQuickScore('10', 10), {ok: true, value: 10});
+ for (const raw of ['-1', '10.1', 'Infinity', 'NaN', '0xA', '1e999', '1,5']) {
+  assert.deepEqual(parseQuickScore(raw, 10), {ok: false});
+ }
+ for (const max of [0, -1, NaN, Infinity]) assert.deepEqual(parseQuickScore('', max), {ok: false});
 });
