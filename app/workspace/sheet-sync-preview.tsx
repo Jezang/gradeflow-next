@@ -2,7 +2,7 @@
 import {useRef,useState} from 'react';
 import type {Workbook,Worksheet} from 'exceljs';
 import type {advisorPreview} from '../../lib/advisor-preview';
-import {planSheetGradeSync,proposeSheetMatches,sheetScoreColumns,type SyncDirection,type SheetGrade,type SheetColumn} from '../../lib/sheet-grade-sync';
+import {planSheetGradeSync,reviewSheetMatches,sheetScoreColumns,type SyncDirection,type SheetGrade,type SheetColumn} from '../../lib/sheet-grade-sync';
 type Report=ReturnType<typeof advisorPreview>;
 type Snapshot={name:string;columns:SheetColumn[];rows:{row:number;name:string;studentId?:string}[];sheet:Worksheet};
 const hasFormula=(value:unknown)=>!!value&&typeof value==='object'&&('formula' in value||'sharedFormula' in value);
@@ -31,8 +31,9 @@ const stateLabel={protected:'สูตร (ไม่แก้ไข)',invalid:'�
 export default function SheetSyncPreview({report}:{report:Report}){
  const [book,setBook]=useState<Workbook|null>(null),[tabs,setTabs]=useState<string[]>([]),[snapshot,setSnapshot]=useState<Snapshot|null>(null),[fileName,setFileName]=useState(''),[busy,setBusy]=useState(false),[status,setStatus]=useState('');
  const [work,setWork]=useState(''),[column,setColumn]=useState(''),[direction,setDirection]=useState<SyncDirection>('import'),[confirmed,setConfirmed]=useState(false),[plan,setPlan]=useState<ReturnType<typeof planSheetGradeSync>|null>(null);
+ const [manual,setManual]=useState<Record<string,number>>({});
  const lock=useRef(false);
- function reset(){setPlan(null);setConfirmed(false)}
+ function reset(){setPlan(null);setConfirmed(false);setManual({})}
  async function load(file:File){
   if(lock.current)return;
   lock.current=true;setBusy(true);setBook(null);setSnapshot(null);setTabs([]);setFileName('');reset();setWork('');setColumn('');setStatus('กำลังอ่านไฟล์บนอุปกรณ์');
@@ -53,8 +54,9 @@ export default function SheetSyncPreview({report}:{report:Report}){
    const data=readTab(s);setSnapshot(data);setStatus('พบ '+data.rows.length+' รายชื่อ และ '+data.columns.length+' คอลัมน์คะแนนที่ไม่พบสูตรในช่วงตรวจสอบ');
   }catch(e){setStatus(e instanceof Error?e.message:'ตรวจแท็บไม่ได้')}
  }
- let matches:ReturnType<typeof proposeSheetMatches>|null=null,matchError='';
- if(snapshot){try{matches=proposeSheetMatches(report.students.map(s=>({studentId:s.id,name:s.name})),snapshot.rows);if(snapshot.rows.some(r=>r.studentId!==undefined)&&matches.some(m=>snapshot.rows.find(r=>r.row===m.row)?.studentId!==m.studentId))throw Error('รหัสนักเรียนในไฟล์ไม่ตรงกับรายชื่อบนเว็บ')}catch(e){matches=null;matchError=e instanceof Error?e.message:'จับคู่ไม่ได้'}}
+ let review:ReturnType<typeof reviewSheetMatches>|null=null,matchError='';
+ if(snapshot){try{review=reviewSheetMatches(report.students.map(s=>({studentId:s.id,name:s.name})),snapshot.rows,manual)}catch(e){matchError=e instanceof Error?e.message:'จับคู่ไม่ได้'}}
+ const matches=review?.complete?review.matches:null;
  const w=report.works.find(x=>x.id===work),c=snapshot?.columns.find(x=>String(x.column)===column);
  function compare(){
   setPlan(null);
@@ -70,9 +72,12 @@ export default function SheetSyncPreview({report}:{report:Report}){
  <label>ไฟล์คะแนน<input type="file" accept=".xlsx" disabled={busy} onChange={e=>{const f=e.target.files?.[0];e.target.value='';if(f)void load(f)}}/></label>
  {fileName&&<small>{fileName}</small>}
  {book&&<label>แท็บคะแนน<select value={snapshot?.name??''} onChange={e=>chooseTab(e.target.value)}><option value="">เลือกแท็บ</option>{tabs.map(t=><option key={t}>{t}</option>)}</select></label>}
- {snapshot&&<><p>{matchError||'พบชื่อที่ตรงกัน '+matches?.length+' คน · ตรวจรายชื่อก่อนยืนยัน'}</p>
- {matches&&<><div className="score-table-scroll"><table><thead><tr><th>รหัสในเว็บ</th><th>ชื่อ</th><th>แถวในไฟล์</th></tr></thead><tbody>{matches.map(m=><tr key={m.studentId}><td>{m.studentId}</td><td>{m.name}</td><td>{m.row}</td></tr>)}</tbody></table></div>
- <label><input type="checkbox" checked={confirmed} onChange={e=>{setConfirmed(e.target.checked);setPlan(null)}}/> ตรวจยืนยันรายชื่อและขอบเขตห้องนี้แล้ว</label></>}
+ {snapshot&&<><p>{matchError||'จับคู่แล้ว '+(review?.matches.length??0)+' / '+report.students.length+' คน · รายชื่อในไฟล์ '+snapshot.rows.length+' คน'}</p>
+ {review&&<><div className="score-table-scroll"><table><thead><tr><th>รหัสในเว็บ</th><th>ชื่อในเว็บ</th><th>ชื่อในไฟล์ / แถว</th></tr></thead><tbody>{review.matches.map(m=><tr key={m.studentId}><td>{m.studentId}</td><td>{m.name}</td><td>{m.sheetName} · {m.row}{manual[m.studentId]!==undefined&&<button type="button" onClick={()=>{setManual(old=>{const next={...old};delete next[m.studentId];return next});setConfirmed(false);setPlan(null)}}>ยกเลิกการจับคู่</button>}</td></tr>)}</tbody></table></div>
+ {review.unresolved.length>0&&<><p role="alert">ยังไม่ตรง {review.unresolved.length} คน · ตรวจชื่อและเลือกแถวของนักเรียนคนเดียวกันเท่านั้น</p>{review.unresolved.map(s=><label key={s.studentId}>{s.name} ({s.studentId})<select value="" onChange={e=>{if(!e.target.value)return;setManual(old=>({...old,[s.studentId]:Number(e.target.value)}));setConfirmed(false);setPlan(null)}}><option value="">เลือกชื่อในไฟล์</option>{review.unused.filter(r=>r.studentId===undefined||r.studentId===s.studentId).map(r=><option key={r.row} value={r.row}>{r.name} · แถว {r.row}</option>)}</select></label>)}</>}
+ {review.unused.length>0&&<p>แถวในไฟล์ที่ยังไม่จับคู่: {review.unused.map(r=>r.row+' '+r.name).join(' · ')}</p>}
+ {snapshot.rows.length!==report.students.length&&<p role="alert">จำนวนรายชื่อไม่เท่ากัน กรุณาตรวจห้องและแท็บคะแนน</p>}
+ {matches&&<label><input type="checkbox" checked={confirmed} onChange={e=>{setConfirmed(e.target.checked);setPlan(null)}}/> ตรวจยืนยันรายชื่อทั้งสองฝั่งและขอบเขตห้องนี้แล้ว</label>}</>}
  <div className="filters">
  <label>งานใน GradeFlow<select value={work} onChange={e=>{setWork(e.target.value);setPlan(null)}}><option value="">เลือกงาน</option>{report.works.map(x=><option key={x.id} value={x.id}>{x.title} ({x.maxScore})</option>)}</select></label>
  <label>คอลัมน์คะแนนในไฟล์<select value={column} onChange={e=>{setColumn(e.target.value);setPlan(null)}}><option value="">เลือกคอลัมน์</option>{snapshot.columns.map(x=><option key={x.column} value={x.column}>{letter(x.column)} · {x.label} ({x.maxScore})</option>)}</select></label>

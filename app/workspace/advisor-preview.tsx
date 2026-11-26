@@ -2,7 +2,7 @@
 import {useEffect,useRef,useState} from 'react';
 import {collection,getDocsFromServer,query,limit,doc,getDocFromServer,where} from 'firebase/firestore';
 import {firebaseServices} from '../../lib/firebase';
-import {advisorPreview,type AdvisorWork} from '../../lib/advisor-preview';
+import {advisorPreview,confirmedRosterNumbers,type AdvisorWork} from '../../lib/advisor-preview';
 import {normalizeSheetLink} from '../../lib/sheet-link';
 import SheetSyncPreview from './sheet-sync-preview';
 
@@ -30,20 +30,34 @@ export default function AdvisorPreview({uid}:{uid:string}){
   if(!window.confirm('สร้างไฟล์ตารางคะแนนใหม่จากรายชื่อและคะแนนที่โหลดอยู่? ไม่แก้ไขชีตเดิม'))return;
   locked.current=true;setCreatingTemplate(true);setSheetStatus('กำลังสร้างไฟล์ต้นแบบ…');
   try{
+   const {db,auth}=firebaseServices();
+   if(auth.currentUser?.uid!==uid)throw Error('บัญชีเปลี่ยน กรุณาเข้าสู่ระบบใหม่');
+   const profile=await getDocFromServer(doc(db,'profiles',uid));
+   if(profile.metadata.hasPendingWrites||profile.data()?.role!=='super_admin'||profile.data()?.active!==true)throw Error('เฉพาะเจ้าของระบบ');
+   let numbers=new Map<string,number>(),numberWarning='';
+   try{
+    const archive=await getDocsFromServer(query(collection(db,'legacyArchives',course,'assignments'),limit(41)));
+    if(archive.size>40||archive.metadata.hasPendingWrites)throw Error('ประวัติยังไม่พร้อม');
+    const history:{id:string;name:string;no:unknown}[]=[];
+    for(const a of archive.docs){const rows=await getDocsFromServer(query(collection(a.ref,'students'),limit(501)));if(rows.size>500||rows.metadata.hasPendingWrites)throw Error('ประวัติยังไม่พร้อม');for(const row of rows.docs)history.push({id:row.id,name:String(row.data().name??''),no:row.data().no})}
+    numbers=confirmedRosterNumbers(report.students,history);
+   }catch{numberWarning=' · อ่านประวัติเลขที่ไม่ได้ จึงเว้นเลขที่ไว้'}
+   if(auth.currentUser?.uid!==uid)throw Error('บัญชีเปลี่ยน กรุณาเข้าสู่ระบบใหม่');
    const {Workbook}=await import('exceljs');const wb=new Workbook(),sheet=wb.addWorksheet('คะแนน');
    const title=courses.find(c=>c.id===course)?.name??course;
    sheet.addRow(['ที่','ชื่อ-นามสกุล','รหัสนักเรียน',...report.works.map(()=> 'คะแนนเก็บ')]);
    sheet.addRow(['','','',...report.works.map(w=>w.title)]);
    sheet.addRow(['','','',...report.works.map(()=> '')]);
    sheet.addRow(['','','',...report.works.map(w=>w.maxScore)]);
-   for(const s of report.students){sheet.addRow(['',s.name,s.id,...report.works.map(w=>{const cell=s.cells.find(c=>c.workId===w.id);return cell?.state==='graded'?cell.score:null})])}
+   const ordered=[...report.students].sort((a,b)=>(numbers.get(a.id)??Infinity)-(numbers.get(b.id)??Infinity)||a.name.localeCompare(b.name,'th')||a.id.localeCompare(b.id));
+   for(const s of ordered){sheet.addRow([numbers.get(s.id)??'',s.name,s.id,...report.works.map(w=>{const cell=s.cells.find(c=>c.workId===w.id);return cell?.state==='graded'?cell.score:null})])}
    sheet.getColumn(1).width=9;sheet.getColumn(2).width=34;sheet.getColumn(3).width=20;sheet.getColumn(3).numFmt='@';
    for(let i=4;i<=sheet.columnCount;i++)sheet.getColumn(i).width=20;
    for(let row=1;row<=4;row++){const r=sheet.getRow(row);r.height=30;r.eachCell({includeEmpty:true},cell=>{cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFECE5EF'}};cell.font={bold:true,color:{argb:'FF332D39'}};cell.alignment={vertical:'middle',horizontal:'center',wrapText:true}})}
    sheet.views=[{state:'frozen',xSplit:3,ySplit:4}];
    wb.creator='GradeFlow';wb.subject=title;
    const bytes=await wb.xlsx.writeBuffer();const url=URL.createObjectURL(new Blob([new Uint8Array(bytes).buffer],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));const anchor=document.createElement('a');anchor.href=url;anchor.download='GradeFlow-'+title.replace(/[^\p{L}\p{N}_-]/gu,'_').slice(0,100)+'.xlsx';anchor.click();setTimeout(()=>URL.revokeObjectURL(url),30000);
-   setSheetStatus('สร้างไฟล์สำเร็จ · เปิด Google Sheets ใหม่ แล้วนำเข้าไฟล์นี้ จากนั้นวางลิงก์กลับมาบันทึก');
+   setSheetStatus('สร้างไฟล์สำเร็จ · ยืนยันเลขที่ได้ '+numbers.size+'/'+report.students.length+' คน'+numberWarning+' · เปิด Google Sheets ใหม่ แล้วนำเข้าไฟล์นี้ จากนั้นวางลิงก์กลับมาบันทึก');
   }catch(e){setSheetStatus(e instanceof Error?e.message:'สร้างไฟล์ไม่ได้')}
   finally{locked.current=false;setCreatingTemplate(false)}
  }
@@ -105,7 +119,7 @@ export default function AdvisorPreview({uid}:{uid:string}){
     {sheetSaved?.key===sheetKey&&<a className="advisor-sheet-open" href={sheetSaved.url} target="_blank" rel="noopener noreferrer">เปิด Google Sheets ↗</a>}
    </div>
    <small>ตัวอย่างสำหรับเจ้าของระบบ · จำลิงก์ในเบราว์เซอร์นี้แยกตามบัญชีและรายวิชาเท่านั้น ยังไม่ซิงก์หรือแชร์ให้ครูคนอื่น โปรดตั้งสิทธิ์ Google Sheets เฉพาะผู้ได้รับอนุญาต และใช้ไฟล์แยกห้องหากครูไม่ควรเห็นห้องอื่น (การเลือกแท็บไม่ได้จำกัดสิทธิ์)</small>
-   <div className="advisor-sheet-new"><strong>2 · สร้างตารางคะแนนใหม่</strong><p>โหลดรายงานก่อนเพื่อสร้างไฟล์พร้อมรายชื่อ รหัสนักเรียน หัวข้องาน คะแนนเต็ม และคะแนนที่ตรวจแล้ว (เลขที่เว้นว่างเพื่อไม่เดาข้อมูล)</p><div className="advisor-sheet-actions"><button type="button" disabled={!report||busy||creatingTemplate} onClick={()=>void downloadNewSheet()}>{creatingTemplate?'กำลังสร้าง…':'สร้างไฟล์ต้นแบบตารางคะแนน'}</button><a className="advisor-sheet-open" href="https://docs.google.com/spreadsheets/create" target="_blank" rel="noopener noreferrer">เปิด Google Sheets ใหม่</a></div><small>นำเข้าไฟล์ .xlsx ในชีตใหม่ แล้วคัดลอกลิงก์มาบันทึกด้านบน · ยังไม่สร้างและเชื่อมชีตผ่าน API อัตโนมัติ</small></div>
+   <div className="advisor-sheet-new"><strong>2 · สร้างตารางคะแนนใหม่</strong><p>โหลดรายงานก่อนเพื่อสร้างไฟล์พร้อมรายชื่อ รหัสนักเรียน หัวข้องาน คะแนนเต็ม และคะแนนที่ตรวจแล้ว (เลขที่จากประวัติรายวิชาที่ชื่อและรหัสตรงกันเท่านั้น หากไม่พบหรือขัดแย้งจะเว้นว่าง)</p><div className="advisor-sheet-actions"><button type="button" disabled={!report||busy||creatingTemplate} onClick={()=>void downloadNewSheet()}>{creatingTemplate?'กำลังสร้าง…':'สร้างไฟล์ต้นแบบตารางคะแนน'}</button><a className="advisor-sheet-open" href="https://docs.google.com/spreadsheets/create" target="_blank" rel="noopener noreferrer">เปิด Google Sheets ใหม่</a></div><small>นำเข้าไฟล์ .xlsx ในชีตใหม่ แล้วคัดลอกลิงก์มาบันทึกด้านบน · ยังไม่สร้างและเชื่อมชีตผ่าน API อัตโนมัติ</small></div>
    <p role="status" aria-live="polite">{sheetStatus}</p>
    {report?<SheetSyncPreview key={course} report={report}/>:<small>3 · ทดลองจับคู่คะแนน: กดดูตัวอย่างรายงานก่อน</small>}
   </div>}

@@ -1,7 +1,7 @@
 // Pure preview only: no network calls, credentials, or writes.
 export type WebGrade={studentId:string;name:string;submitted:boolean;score:number|null};
 export type SheetGrade={row:number;name:string;value:unknown;formula:boolean};
-export type ConfirmedMatch={studentId:string;row:number;name:string};
+export type ConfirmedMatch={studentId:string;row:number;name:string;sheetName?:string};
 export type SyncDirection='import'|'export';
 const normalize=(name:string)=>name.normalize('NFC').trim().replace(/\s+/g,' ');
 export function planSheetGradeSync(input:{direction:SyncDirection;webMax:number;sheetMax:number;web:WebGrade[];sheet:SheetGrade[];matches:ConfirmedMatch[]}){
@@ -15,7 +15,7 @@ export function planSheetGradeSync(input:{direction:SyncDirection;webMax:number;
  if(input.matches.length!==web.size||input.matches.length!==sheet.size)throw Error('ต้องตรวจยืนยันรายชื่อทั้งห้องให้ครบก่อน');
  return input.matches.map(m=>{
   const w=web.get(m.studentId),s=sheet.get(m.row);
-  if(!w||!s||!Number.isSafeInteger(m.row)||m.row<5||!normalize(m.name)||normalize(w.name)!==normalize(m.name)||normalize(s.name)!==normalize(m.name))throw Error('รายชื่อหรือแถวเปลี่ยน กรุณาตรวจจับคู่ใหม่');
+  if(!w||!s||!Number.isSafeInteger(m.row)||m.row<5||!normalize(m.name)||normalize(w.name)!==normalize(m.name)||normalize(s.name)!==normalize(m.sheetName??m.name))throw Error('รายชื่อหรือแถวเปลี่ยน กรุณาตรวจจับคู่ใหม่');
   const valid=(v:unknown):v is number=>typeof v==='number'&&Number.isFinite(v)&&v>=0&&v<=input.webMax;
   const base={studentId:m.studentId,row:m.row,webScore:w.score,sheetScore:s.value};
   if(s.formula)return {...base,state:'protected' as const};
@@ -52,4 +52,30 @@ export function proposeSheetMatches(web:{studentId:string;name:string}[],sheet:{
  if(a.length!==b.length||new Set(a.map(x=>x.key)).size!==a.length||new Set(b.map(x=>x.key)).size!==b.length||a.some(x=>!x.key)||b.some(x=>!x.key))throw Error('จำนวนหรือชื่อซ้ำ ไม่สามารถจับคู่อัตโนมัติได้');
  const names=new Map(b.map(x=>[x.key,x]));
  return a.map(x=>{const found=names.get(x.key);if(!found)throw Error('ชื่อไม่ตรง กรุณาตรวจสอบรายชื่อทั้งสองระบบ');return {studentId:x.studentId,row:found.row,name:x.name}});
+}
+
+type ReviewWeb={studentId:string;name:string};
+type ReviewRow={row:number;name:string;studentId?:string};
+const nameKey=(name:string)=>normalize(name).replace(/^(?:เด็กชาย|เด็กหญิง|นางสาว|ด\s*\.\s*[ชญ]\s*\.|น\s*\.\s*ส\s*\.|นาย|นาง)\s*/u,'').replace(/\s+/gu,'');
+export function reviewSheetMatches(web:ReviewWeb[],sheet:ReviewRow[],manual:Record<string,number>={}){
+ const used=new Set<number>();
+ const matches:ConfirmedMatch[]=[];
+ const unresolved:ReviewWeb[]=[];
+ const valid=(w:ReviewWeb,r:ReviewRow)=>r.studentId===undefined||r.studentId===w.studentId;
+ if(new Set(web.map(w=>w.studentId)).size!==web.length||new Set(sheet.map(r=>r.row)).size!==sheet.length)throw Error('พบรหัสหรือแถวซ้ำ');
+ const assign=(w:ReviewWeb,r:ReviewRow)=>{used.add(r.row);matches.push({studentId:w.studentId,row:r.row,name:w.name,sheetName:r.name})};
+ for(const w of web){
+  const key=nameKey(w.name);
+  const candidates=sheet.filter(r=>valid(w,r)&&key&&nameKey(r.name)===key);
+  const unique=web.filter(x=>nameKey(x.name)===key).length===1;
+  const idCandidates=sheet.filter(r=>r.studentId===w.studentId&&nameKey(r.name)===key&&key);
+  const candidate=idCandidates.length===1?idCandidates[0]:unique&&candidates.length===1?candidates[0]:undefined;
+  if(candidate&&!used.has(candidate.row))assign(w,candidate);else unresolved.push(w);
+ }
+ const remaining:ReviewWeb[]=[];
+ for(const w of unresolved){
+  const r=sheet.find(r=>r.row===manual[w.studentId]);
+  if(r&&!used.has(r.row)&&valid(w,r))assign(w,r);else remaining.push(w);
+ }
+ return {matches,unresolved:remaining,unused:sheet.filter(r=>!used.has(r.row)),complete:matches.length===web.length&&matches.length===sheet.length&&web.length>0};
 }
