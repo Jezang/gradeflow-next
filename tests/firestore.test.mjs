@@ -1,7 +1,7 @@
 import {before,after,test} from 'node:test';
 import {readFileSync} from 'node:fs';
 import {initializeTestEnvironment,assertFails,assertSucceeds} from '@firebase/rules-unit-testing';
-import {doc,getDoc,setDoc,writeBatch,serverTimestamp,collection,getDocs,updateDoc} from 'firebase/firestore';
+import {doc,getDoc,setDoc,writeBatch,serverTimestamp,collection,getDocs,updateDoc,query,where,Timestamp} from 'firebase/firestore';
 let env;
 before(async()=>{env=await initializeTestEnvironment({projectId:'demo-gradeflow',firestore:{rules:readFileSync('firestore.rules','utf8')}});await env.clearFirestore();await env.withSecurityRulesDisabled(async c=>{for(const [id,role] of [['owner','super_admin'],['admin','admin'],['teacher','teacher']])await setDoc(doc(c.firestore(),'profiles',id),{role,active:true});});});
 after(async()=>{await env?.cleanup()});
@@ -34,4 +34,27 @@ test('portal projections remain inaccessible directly under the current release 
     await assertFails(getDocs(collection(client, 'portalViews')));
     await assertFails(setDoc(doc(client, 'portalViews', uid), { ...projection, active: false }));
   }
+});
+
+test('advisor scope, deadline and attendance writes are separated from scoring',async()=>{
+ const owner=db('owner'),teacher=db('teacher'),other=db('candidate'),admin=db('admin');
+ const cid='teacher__R1__ENG2__T1',wid='trackingW',student='S1';
+ await env.withSecurityRulesDisabled(async c=>{const d=c.firestore();await updateDoc(doc(d,'teachingAssignments',cid),{active:true});await setDoc(doc(d,'rooms','R2'),{code:'R2',name:'R2',active:true});await setDoc(doc(d,'teachingAssignments','outsideTracking'),{teacherUid:'teacher',roomId:'R2',subjectId:'ENG2',termId:'T1',active:true});});
+ const work=d=>doc(d,'teachingAssignments',cid,'work',wid),att=d=>doc(work(d),'attendance',student),sub=d=>doc(work(d),'submissions',student),grant=d=>doc(d,'advisorAssignments','candidate','rooms','R1');
+ await assertSucceeds(setDoc(work(teacher),{title:'Tracking',maxScore:10,active:true,createdBy:'teacher',createdAt:serverTimestamp()}));
+ const due=Timestamp.fromMillis(100000),later=Timestamp.fromMillis(200000);
+ const changes={deadline:due,revisionDeadline:later,deadlineUpdatedBy:'teacher',deadlineUpdatedAt:serverTimestamp()};
+ await assertFails(updateDoc(work(teacher),{...changes,revisionDeadline:Timestamp.fromMillis(0)}));
+ await assertSucceeds(updateDoc(work(teacher),changes));await assertFails(updateDoc(work(other),{...changes,deadlineUpdatedBy:'candidate'}));
+ const payload={studentId:student,status:'leave',updatedBy:'teacher',updatedAt:serverTimestamp()};
+ await assertSucceeds(setDoc(att(teacher),payload));await assertFails(setDoc(att(other),{...payload,updatedBy:'candidate'}));await assertFails(setDoc(att(teacher),{...payload,status:'bad'}));
+ await assertFails(getDoc(work(other)));await assertFails(setDoc(grant(other),{roomId:'R1',active:true,updatedBy:'candidate',updatedAt:serverTimestamp()}));
+ await assertFails(setDoc(grant(admin),{roomId:'R1',active:true,updatedBy:'admin',updatedAt:serverTimestamp()}));
+ await assertSucceeds(setDoc(grant(owner),{roomId:'R1',active:true,updatedBy:'owner',updatedAt:serverTimestamp()}));
+ await assertSucceeds(getDoc(work(other)));await assertSucceeds(getDoc(att(other)));await assertSucceeds(getDocs(query(collection(other,'teachingAssignments'),where('roomId','==','R1'),where('active','==',true))));
+ await assertFails(getDoc(doc(other,'teachingAssignments','outsideTracking')));await assertFails(setDoc(att(other),{...payload,updatedBy:'candidate'}));
+ await assertFails(setDoc(sub(other),{studentId:student,submitted:true,score:10,updatedBy:'candidate',updatedAt:serverTimestamp()}));
+ await assertSucceeds(setDoc(sub(teacher),{studentId:student,submitted:true,score:0,updatedBy:'teacher',updatedAt:serverTimestamp()}));
+ await assertSucceeds(getDoc(sub(other)));await assertFails(setDoc(att(teacher),payload));
+ await assertSucceeds(setDoc(grant(owner),{roomId:'R1',active:false,updatedBy:'owner',updatedAt:serverTimestamp()}));await assertFails(getDoc(work(other)));
 });

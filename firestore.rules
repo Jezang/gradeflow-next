@@ -37,8 +37,24 @@ service cloud.firestore {
    allow delete: if false;
   }
   function activeRecord(kind,id){return id is string && id.size() > 0 && get(/databases/$(database)/documents/$(kind)/$(id)).data.active == true;}
+  // Advisor rights are explicitly assigned by the owner for a single room.
+  function advisorForRoom(roomId){return staff() && roomId is string
+    && get(/databases/$(database)/documents/advisorAssignments/$(request.auth.uid)/rooms/$(roomId)).data.active == true
+    && activeRecord('rooms',roomId);}
+  function advisorCourse(cid){return course(cid).active == true && advisorForRoom(course(cid).roomId);}
+  match /advisorAssignments/{uid}/rooms/{roomId} {
+   allow read: if owner() || (own(uid) && staff());
+   allow create, update: if owner()
+     && (request.resource.data.active == false || (activeRecord('profiles',uid)
+     && get(/databases/$(database)/documents/profiles/$(uid)).data.role == 'teacher'
+     && activeRecord('rooms',roomId)))
+     && request.resource.data.keys().hasOnly(['roomId','active','updatedBy','updatedAt'])
+     && request.resource.data.roomId == roomId && request.resource.data.active is bool
+     && request.resource.data.updatedBy == request.auth.uid && request.resource.data.updatedAt == request.time;
+   allow delete: if owner();
+  }
   match /teachingAssignments/{id} {
-   allow read: if admin() || (signed() && profile().active == true && profile().role == 'teacher' && resource.data.teacherUid == request.auth.uid);
+   allow read: if admin() || (signed() && profile().active == true && profile().role == 'teacher' && resource.data.teacherUid == request.auth.uid) || (resource.data.active == true && advisorForRoom(resource.data.roomId));
    allow create: if admin() && request.resource.data.keys().hasOnly(['teacherUid','roomId','subjectId','termId','active','createdAt'])
      && request.resource.data.teacherUid is string && (get(/databases/$(database)/documents/profiles/$(request.resource.data.teacherUid)).data.role == 'teacher' || ((owner() || request.resource.data.teacherUid == request.auth.uid) && get(/databases/$(database)/documents/profiles/$(request.resource.data.teacherUid)).data.role in ['admin','super_admin']))
      && activeRecord('profiles',request.resource.data.teacherUid) && activeRecord('rooms',request.resource.data.roomId)
@@ -54,7 +70,7 @@ service cloud.firestore {
   function openCourse(id){return canCourse(id) && course(id).active == true && activeRecord('profiles',course(id).teacherUid);}
   function enrolled(cid,sid){return get(/databases/$(database)/documents/teachingAssignments/$(cid)/roster/$(sid)).data.active == true;}
   match /teachingAssignments/{cid}/roster/{sid} {
-   allow read: if canCourse(cid);
+   allow read: if canCourse(cid) || advisorCourse(cid);
    allow create, update: if admin() && course(cid).active == true
      && request.resource.data.keys().hasOnly(['studentId','name','active'])
      && request.resource.data.studentId == sid && request.resource.data.active is bool
@@ -64,7 +80,7 @@ service cloud.firestore {
    allow delete: if false;
   }
   match /teachingAssignments/{cid}/work/{wid} {
-   allow read: if canCourse(cid);
+   allow read: if canCourse(cid) || advisorCourse(cid);
    allow create: if openCourse(cid) && request.resource.data.keys().hasOnly(['title','maxScore','createdBy','createdAt','active'])
      && request.resource.data.title is string && request.resource.data.title.size() > 0 && request.resource.data.title.size() <= 160
      && request.resource.data.maxScore is number && request.resource.data.maxScore > 0 && request.resource.data.maxScore <= 1000
@@ -83,9 +99,27 @@ service cloud.firestore {
      && request.resource.data.active == true && request.resource.data.importPending == false;
    allow update: if openCourse(cid) && resource.data.get('importPending',false) == false && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['active']) && request.resource.data.active == false;
    allow delete: if false;
+   // Deadlines are informational: late work and audited corrections remain possible.
+   allow update: if openCourse(cid) && resource.data.active == true
+     && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deadline','revisionDeadline','deadlineUpdatedBy','deadlineUpdatedAt'])
+     && request.resource.data.keys().hasAll(['deadline','revisionDeadline','deadlineUpdatedBy','deadlineUpdatedAt'])
+     && (request.resource.data.deadline == null || request.resource.data.deadline is timestamp)
+     && (request.resource.data.revisionDeadline == null || (request.resource.data.deadline is timestamp && request.resource.data.revisionDeadline is timestamp && request.resource.data.revisionDeadline >= request.resource.data.deadline))
+     && request.resource.data.deadlineUpdatedBy == request.auth.uid && request.resource.data.deadlineUpdatedAt == request.time;
+   match /attendance/{sid} {
+    function submissionPath(){return /databases/$(database)/documents/teachingAssignments/$(cid)/work/$(wid)/submissions/$(sid);}
+    allow read: if canCourse(cid) || advisorCourse(cid);
+    allow create, update: if openCourse(cid) && enrolled(cid,sid)
+      && get(/databases/$(database)/documents/teachingAssignments/$(cid)/work/$(wid)).data.active == true
+      && (!exists(submissionPath()) || getAfter(submissionPath()).data.submitted == false)
+      && request.resource.data.keys().hasOnly(['studentId','status','updatedBy','updatedAt'])
+      && request.resource.data.studentId == sid && request.resource.data.status in ['leave','absent','missing']
+      && request.resource.data.updatedBy == request.auth.uid && request.resource.data.updatedAt == request.time;
+    allow delete: if false;
+   }
    match /submissions/{sid} {
     function work(){return get(/databases/$(database)/documents/teachingAssignments/$(cid)/work/$(wid)).data;}
-    allow read: if canCourse(cid);
+    allow read: if canCourse(cid) || advisorCourse(cid);
     function validResult(){return openCourse(cid) && work().active == true && enrolled(cid,sid)
       && request.resource.data.studentId == sid && request.resource.data.submitted is bool
       && (request.resource.data.submitted == true || request.resource.data.score == null)
