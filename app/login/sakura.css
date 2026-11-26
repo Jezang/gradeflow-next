@@ -32,3 +32,21 @@
  .auth-register .auth-steps li {flex-direction:column;text-align:center;padding:8px 4px;font-size:11px}
 }
 @media(max-width:350px) {.sakura-form{padding:17px 13px}.sakura-login{padding:9px}.sakura-form .login-options{gap:5px}}
+
+/* Shared scenic authentication surface; keep all existing form behavior. */
+.sakura-login .sakura-art{position:relative;isolation:isolate;overflow:hidden;justify-content:flex-start;padding-top:clamp(36px,6vw,84px);background:#d5eee8 url('/sakura-garden.svg') 70% bottom/auto 75% no-repeat}
+.sakura-login .sakura-art:before{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(180deg,#fff8f2 0%,#fff8f2f2 25%,#fff8f280 46%,transparent 68%)}
+.sakura-login .sakura-art>svg,.auth-register .sakura-art>div[aria-hidden="true"]{display:none}
+.sakura-login .sakura-art h2{color:#34483f}
+.sakura-login .sakura-art p{color:#43594e}
+.sakura-login .auth-steps li{background:#fffaf5e8;color:#43594e}
+.sakura-form input[type=checkbox]{width:20px;height:20px;accent-color:#963e61}
+.sakura-form .login-options label{min-height:44px}
+.sakura-form a.primary{color:white;background:#963e61}
+@media(max-width:740px){
+ .sakura-login .sakura-art{min-height:180px;padding:16px 12px 82px;background-size:cover;background-position:70% 65%}
+ .sakura-login .sakura-art:before{background:linear-gradient(180deg,#fff8f2f5,#fff8f2d9 35%,transparent 85%)}
+ .sakura-login .sakura-art h2{font-size:22px;margin:4px 0}
+ .auth-register .sakura-art{padding-bottom:65px}
+ .auth-register .auth-steps{width:100%;max-width:350px;margin:8px 0}
+}
