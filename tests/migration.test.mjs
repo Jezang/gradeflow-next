@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {inspectLegacy,prepareLegacy,matchLegacy,planLegacyGroups,checkLegacyRegistry,planEnglishTerm2,resolveTerm2Master,planTerm2Archives} from '../lib/migration.ts';
+import {inspectLegacy,prepareLegacy,matchLegacy,planLegacyGroups,checkLegacyRegistry,planEnglishTerm2,resolveTerm2Master,planTerm2Archives,compareTerm2LiveRecords} from '../lib/migration.ts';
 const example=()=>({students:{'001':{id:'001',name:'Test',level:'M2',room:'5',subject:'ENG',no:'1'},'002':{id:'002',name:'Test 2'}},assignments:{a1:{id:'a1',name:'Work',maxScore:10}},records:{a1:{'001':{score:0,submitted:true,note:'note',ts:123},'002':{score:null,submitted:false,status:'leave'}}},config:{lineToken:'secret-test-value'}});
 test('counts valid zero scores and leave separately, never exports config',()=>{const s=inspectLegacy(example());assert.equal(s.students,2);assert.equal(s.records,2);assert.equal(s.sent,1);assert.equal(s.graded,1);assert.equal(s.leave,1);assert.equal(s.notes,1);assert.equal(s.issues.length,0);assert.equal(s.roster[0].code,'001');assert.ok(!JSON.stringify(s).includes('secret-test-value'))});
 test('rejects missing structures, invalid score and orphan records',()=>{assert.throws(()=>inspectLegacy({students:{}}));const d=example();d.records.a1['001'].score=11;d.records.a1.unknown={submitted:true,score:1};assert.equal(inspectLegacy(d).issues.length,2)});
@@ -134,4 +134,12 @@ test('term 2 archive keeps original metadata and records without inventing missi
  assert.equal(p.items[1].needsScopeConfirmation,false);
  d.assignments.a1.room='9';
  assert.throws(()=>planTerm2Archives(prepareLegacy(d)));
+});
+
+test('post-migration audit separates unchanged, edited, missing and new records',()=>{
+ const original=['a','b','c','d'].map(studentId=>({studentId,score:0,submitted:true,status:'submitted',note:'',originalTs:null}));
+ const row=(r,score=r.score)=>({id:r.studentId,data:{studentId:r.studentId,legacy:r,score,submitted:r.submitted}});
+ const current=[row(original[0]),row(original[1],5),{id:'c',data:{studentId:'c',score:0,submitted:true}}, {id:'new',data:{studentId:'new',score:1,submitted:true}}];
+ assert.deepEqual(compareTerm2LiveRecords(original,current),{exact:1,changed:1,missing:1,legacyMismatch:1,additional:1});
+ assert.deepEqual(compareTerm2LiveRecords(original,original.map(r=>row(r))),{exact:4,changed:0,missing:0,legacyMismatch:0,additional:0});
 });
