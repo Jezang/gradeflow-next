@@ -178,3 +178,19 @@ export function planTerm2Archives(prepared:PreparedLegacy){
  if(items.reduce((n,x)=>n+x.recordCount,0)!==p.recordCount)throw Error('ยอดบันทึกไม่ครบ');
  return {items,recordCount:p.recordCount,workCount:p.assignments.length,studentCount:p.studentCount};
 }
+
+export function compareTerm2LiveRecords(original:LegacyRecord[],current:{id:string;data:Record<string,unknown>}[]){
+ const expected=new Map(original.map(r=>[r.studentId,r]));
+ const actual=new Map(current.map(r=>[r.id,r.data]));
+ const counts={exact:0,changed:0,missing:0,legacyMismatch:0,additional:0};
+ const equal=(a:unknown,b:unknown):boolean=>a===b||!!(a&&b&&typeof a==='object'&&typeof b==='object'&&Object.keys(a).length===Object.keys(b).length&&Object.entries(a).every(([k,v])=>Object.hasOwn(b,k)&&equal(v,(b as Record<string,unknown>)[k])));
+ for(const [id,r] of expected){
+  const row=actual.get(id);
+  if(!row)counts.missing++;
+  else if(row.studentId!==id||!equal(row.legacy,r))counts.legacyMismatch++;
+  else if(row.score!==r.score||row.submitted!==r.submitted)counts.changed++;
+  else counts.exact++;
+ }
+ for(const id of actual.keys())if(!expected.has(id))counts.additional++;
+ return counts;
+}
