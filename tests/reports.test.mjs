@@ -41,3 +41,13 @@ test('score export rejects ambiguous IDs without silently rewriting them', () =>
   assert.throws(() => scoreExportTable(scope, [student, {...student, studentId: '001 '}]), /invalid student IDs/);
   assert.equal(scoreExportTable(scope, [student])[5][0], '001');
 });
+
+
+test('score export rejects non-finite counts and scores before preview or download', () => {
+  for (const key of ['expected', 'submitted', 'graded', 'points', 'maximum']) {
+    for (const value of [NaN, Infinity, -Infinity]) {
+      assert.throws(() => scoreExportTable(scope, [{ ...student, [key]: value }]), /invalid numeric export values/);
+    }
+  }
+  assert.equal(scoreExportTable(scope, [student])[5][5], 0);
+});
