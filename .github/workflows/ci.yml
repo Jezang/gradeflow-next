@@ -28,7 +28,6 @@ jobs:
           npm run test:migration
           npm run test:backup
           npm run test:line
-          npm run test:recovery
   firestore:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -43,4 +42,4 @@ jobs:
           java-version: '21'
       - run: npm install --no-audit --no-fund
       - name: Test rules with local emulator only
-        run: npx --yes firebase-tools@14 emulators:exec --only firestore --project demo-gradeflow "npm run test:rules"
+        run: npx --yes firebase-tools@14 emulators:exec --only firestore --project demo-gradeflow "npm run test:rules && npm run test:recovery"
