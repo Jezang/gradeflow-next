@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {gradebookCsvPreview} from '../lib/gradebook-csv-preview.ts';
-import {previewSheetsMapping, scoreExportTable} from '../lib/score-export.ts';
+import {previewSheetsMapping, scoreExportTable, scoreExportSnapshotKey} from '../lib/score-export.ts';
 import {validateStudents,parseCsv,csv,csvCell} from '../lib/reports.ts';
 test('preserves leading zeros and rejects duplicates, nontext ids and extra data',()=>{const r=validateStudents([['001','ชื่อ'],['001','ซ้ำ'],[2,'numeric'],['A','ok','unexpected'],['B',''],['C','ชื่อ 2']]);assert.deepEqual(r.valid,[{code:'001',name:'ชื่อ'},{code:'C',name:'ชื่อ 2'}]);assert.equal(r.errors.length,4)});
 test('CSV handles BOM, quotes, commas and line breaks',()=>{assert.deepEqual(parseCsv('\uFEFFcode,name\r\n001,"A, B"\r\n002,"a""b\nc"'),[['code','name'],['001','A, B'],['002','a"b\nc']]);assert.throws(()=>parseCsv('a,"bad'));assert.throws(()=>parseCsv('a,"bad"x'));});
@@ -50,4 +50,22 @@ test('score export rejects non-finite counts and scores before preview or downlo
     }
   }
   assert.equal(scoreExportTable(scope, [student])[5][5], 0);
+});
+
+
+test('export snapshot identity changes when the reviewed scope, roster, scores or order changes', () => {
+ const original = scoreExportSnapshotKey(scope, [student]);
+ assert.ok(original);
+ assert.equal(scoreExportSnapshotKey({...scope}, [{...student}]), original);
+ for (const changed of [{...scope, room: 'ROOM-OTHER'}, {...scope, subject: 'SUB-OTHER'}, {...scope, term: 'TERM-OTHER'}]) {
+  assert.notEqual(scoreExportSnapshotKey(changed, [student]), original);
+ }
+ for (const changed of [{...student, points: 1}, {...student, name: 'Synthetic Other'}, {...student, grade: '4'}, {...student, studentId: '002'}]) {
+  assert.notEqual(scoreExportSnapshotKey(scope, [changed]), original);
+ }
+ const other = {...student, studentId: '002'};
+ assert.notEqual(scoreExportSnapshotKey(scope, [student, other]), scoreExportSnapshotKey(scope, [other, student]));
+ assert.notEqual(scoreExportSnapshotKey(scope, []), original);
+ assert.equal(scoreExportSnapshotKey(scope, [{...student, points: Infinity}]), null);
+ assert.equal(scoreExportSnapshotKey(scope, [student, student]), null);
 });
