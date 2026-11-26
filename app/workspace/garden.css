@@ -250,3 +250,18 @@
  }
 }
 @media print{.teacher-hub .hub-bottom-nav{display:none!important}}
+
+@media screen{
+ .teacher-hub .demo-grade-stats{margin:0;gap:10px}
+ .teacher-hub .demo-grade-stats .panel{margin:0}
+ .teacher-hub .demo-student{display:flex;align-items:center;gap:9px}
+ .demo-score-avatar{display:grid;place-items:center;width:38px;height:42px;flex:none;background:var(--sakura-soft);border-radius:12px;padding:3px}
+ .teacher-hub .demo-score-state{display:inline-block;padding:5px 9px;border-radius:9px;font-weight:650;white-space:nowrap}
+ .teacher-hub .demo-score-state.graded{background:var(--sakura-mint);color:#365c49}
+ .teacher-hub .demo-score-state.pending{background:#f9eadb;color:#815331}
+ .teacher-hub .demo-score-state.missing{background:var(--sakura-soft);color:var(--sakura-accent)}
+ .teacher-hub.night .demo-score-state.graded{color:#c8efda}
+ .teacher-hub .hub-bottom-nav button:focus-visible{outline:2px solid var(--sakura-accent);outline-offset:0}
+ @media(max-width:1120px){.teacher-hub .demo-grade-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+ @media(max-width:550px){.teacher-hub .demo-grade-stats .panel{padding:12px}.demo-score-avatar{width:32px;height:36px}}
+}
