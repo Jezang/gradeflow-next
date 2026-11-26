@@ -2,7 +2,12 @@ import {NextResponse} from 'next/server';
 import {sessionKey,sealLine,openLine,validCredentials} from '../../../../lib/line-session';
 import {cookies} from 'next/headers';
 export const runtime='nodejs';
+import {LINE_ENABLED} from '../../../../lib/line-policy';
 export async function POST(req:Request){
+ if(!LINE_ENABLED){const response=NextResponse.json({error:'พักระบบ LINE API ชั่วคราว'},{status:503});response.cookies.set('gradeflow_line_session','',{httpOnly:true,secure:process.env.NODE_ENV==='production',sameSite:'strict',path:'/api/line/push',maxAge:0});return response;}
+ return handleLine(req);
+}
+async function handleLine(req:Request){
  try{
   const auth=req.headers.get('authorization');
   if(!auth?.startsWith('Bearer ')||auth.length>8192)return NextResponse.json({error:'กรุณาเข้าสู่ระบบ'},{status:401});
