@@ -50,3 +50,19 @@ test('weighted previews reject malformed maximum scores even in zero-weight cate
  }
  assert.equal(weightedGradePreview([{ weight: 100, earned: Number.MAX_VALUE, possible: Number.MAX_VALUE, complete: true }]), 100);
 });
+
+
+test('bulk preview fails closed for ambiguous master or roster IDs without hiding valid peers', () => {
+ const master = students.map(row => ({ ...row, active: true }));
+ const duplicateMaster = [...master, { id: 'TEST001', name: 'Conflicting synthetic record', active: false }];
+ assert.deepEqual(previewBulkRoster('TEST001 TEST002', duplicateMaster, []), [
+  { id: 'TEST001', status: 'unavailable' },
+  { id: 'TEST002', name: 'Synthetic Two', status: 'new' },
+ ]);
+ assert.deepEqual(previewBulkRoster('TEST001 TEST002', master, [
+  { id: 'TEST001', active: true }, { id: 'TEST001', active: false },
+ ]), [
+  { id: 'TEST001', status: 'unavailable' },
+  { id: 'TEST002', name: 'Synthetic Two', status: 'new' },
+ ]);
+});
