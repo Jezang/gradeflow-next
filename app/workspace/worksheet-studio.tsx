@@ -58,10 +58,11 @@ export default function WorksheetStudio({labels}:{labels:Label[]}){
   finally{lock.current=false;setBusy(false)}
  }
  function begin(e:PointerEvent<HTMLImageElement>){
+  if(lock.current)return;
   const rect=e.currentTarget.getBoundingClientRect();drag.current={dx:e.clientX-rect.left,dy:e.clientY-rect.top};e.currentTarget.setPointerCapture(e.pointerId);e.preventDefault();
  }
  function move(e:PointerEvent<HTMLImageElement>){
-  if(!drag.current||!surface.current)return;
+  if(lock.current||!drag.current||!surface.current)return;
   const r=surface.current.getBoundingClientRect();
   setPlacement(p=>({...p,x:Math.max(0,Math.min(1,(e.clientX-r.left-drag.current!.dx)/r.width)),y:Math.max(0,Math.min(1,(e.clientY-r.top-drag.current!.dy)/r.height))}));
  }
@@ -77,7 +78,7 @@ export default function WorksheetStudio({labels}:{labels:Label[]}){
     for(let i=0;i<selected.length;i++){
      const png=await output.embedPng(selected[i][kind]);
      const pages=await output.copyPages(input,input.getPageIndices());
-     pages.forEach((p,index)=>{if(all||index===page-1){const {width,height}=p.getSize(),box=codeBox(width,height,png.width/png.height,placement);p.drawRectangle({x:box.left,y:box.y,width:box.width,height:box.height,color:undefined,opacity:0});p.drawImage(png,{x:box.left,y:box.y,width:box.width,height:box.height})}output.addPage(p)});
+     pages.forEach((p,index)=>{if(all||index===page-1){const {width,height}=p.getSize(),box=codeBox(width,height,png.width/png.height,placement);p.drawImage(png,{x:box.left,y:box.y,width:box.width,height:box.height})}output.addPage(p)});
      setStatus('สร้างใบงาน '+(i+1)+' / '+selected.length);
     }
     download(await output.save(),prefix+'-gradeflow.pdf','application/pdf');
