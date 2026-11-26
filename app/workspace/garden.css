@@ -349,3 +349,41 @@
  .modern-label-grid .label-check,.modern-label-grid .label-unpicked{display:none!important}
  .modern-label-grid .label-picked{display:grid!important}
 }
+
+/* Scan station: compact, framed, high-contrast controls inspired by legacy checking. */
+@media screen {
+ .teacher-hub .scanner-station{display:grid;gap:10px;min-width:0;margin:12px 0 18px;padding:12px;background:var(--garden-bg);border:1px solid var(--garden-border);border-radius:14px}
+ .teacher-hub .scanner-zone{display:grid;justify-items:center;align-content:center;gap:8px;min-height:166px;padding:18px 12px;text-align:center;border:1.5px dashed var(--garden-border);border-radius:12px;background:var(--garden-card)}
+ .teacher-hub .scanner-zone.is-ready{border-color:#65a98a}
+ .teacher-hub .scanner-zone-icon{display:grid;place-items:center;width:46px;height:46px;border-radius:12px;background:var(--sakura-mint);color:var(--garden-ink)}
+ .teacher-hub .scanner-zone-icon .sakura-icon{width:25px;height:25px}
+ .teacher-hub .scanner-zone strong{font-size:17px}
+ .teacher-hub .scanner-zone small{font-size:12px;line-height:1.5}
+ .teacher-hub .scanner-zone>.primary{min-height:40px;margin-top:2px}
+ .teacher-hub .scanner-zone>div:not(.scanner-zone-icon){width:100%;max-width:440px}
+ .teacher-hub .scanner-code-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:end;margin:0}
+ .teacher-hub .scanner-code-row label{margin:0;min-width:0;font-weight:650}
+ .teacher-hub .scanner-code-row input{width:100%;box-sizing:border-box;min-height:46px;margin-top:5px;border:1px solid var(--sakura-accent);border-radius:9px}
+ .teacher-hub .scanner-code-row>button{min-height:46px;border-radius:9px}
+ .teacher-hub .scanner-grade-bar{display:flex;align-items:end;flex-wrap:wrap;gap:12px;padding:11px;background:var(--garden-card);border:1px solid var(--garden-border);border-radius:10px}
+ .teacher-hub .scanner-mode,.teacher-hub .scanner-score-stepper{display:grid;gap:5px;min-width:0}
+ .teacher-hub .scanner-mode>div,.teacher-hub .scanner-score-stepper>div{display:flex;align-items:center;gap:5px}
+ .teacher-hub .scanner-mode button{min-height:40px;padding:8px 12px;border-radius:8px;white-space:normal}
+ .teacher-hub .scanner-mode button[aria-pressed="true"]{background:var(--sakura-mint);border-color:#65a98a;color:var(--garden-ink);font-weight:750}
+ .teacher-hub .scanner-score-stepper>label{margin:0;font-size:12px;color:var(--garden-muted)}
+ .teacher-hub .scanner-score-stepper input{width:72px;min-width:0;height:40px;box-sizing:border-box;text-align:center;font-size:18px;font-weight:750;font-variant-numeric:tabular-nums;border-radius:8px;border-color:var(--sakura-accent)}
+ .teacher-hub .scanner-score-stepper button{width:40px;min-width:40px;height:40px;padding:0;border-radius:8px;font-size:20px}
+ .teacher-hub .scanner-score-stepper small{white-space:nowrap}
+ .teacher-hub .scanner-sound{display:flex;gap:6px;align-items:center;min-height:40px;margin:0;font-size:12px}
+ .teacher-hub .scanner-sound input{width:auto;min-height:0;accent-color:var(--sakura-accent)}
+ .teacher-hub .scanner-feedback{min-height:20px;padding:8px 10px;font-size:13px;line-height:1.5;border-radius:8px;background:var(--sakura-soft);overflow-wrap:anywhere}
+ @media(max-width:550px){
+  .teacher-hub .scanner-station{padding:8px}
+  .teacher-hub .scanner-zone{min-height:140px;padding:12px 8px}
+  .teacher-hub .scanner-code-row{grid-template-columns:minmax(0,1fr)}
+  .teacher-hub .scanner-code-row>button{width:100%}
+  .teacher-hub .scanner-grade-bar{gap:10px;padding:9px}
+  .teacher-hub .scanner-mode{width:100%}
+  .teacher-hub .scanner-mode>div>button{flex:1}
+ }
+}
