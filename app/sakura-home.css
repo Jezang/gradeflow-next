@@ -89,3 +89,13 @@
 .home-scenic-hero .home-hero-copy{max-width:55%}
 @media(max-width:850px){.sakura-home .home-scenic-hero{min-height:280px;background-position:65% center}.home-scenic-hero .home-hero-copy{max-width:65%}}
 @media(max-width:530px){.sakura-home .home-scenic-hero{padding:24px 19px 130px;background-position:70% bottom;background-size:auto 100%}.home-scenic-hero:before{background:linear-gradient(180deg,#fff8f2fa,#fff8f2ef 48%,#fff8f290 68%,transparent 92%)}.home-scenic-hero .home-hero-copy{max-width:100%}}
+
+/* Cohesive custom brand and feature artwork. */
+.sakura-home .home-brand>span:first-child{padding:3px}
+.sakura-home .home-brand .sakura-animal{display:block;width:100%;height:100%}
+.sakura-home .home-feature-icon .sakura-icon{width:24px;height:24px}
+.sakura-home .home-sidebar-note .sakura-icon{color:#528465;width:23px;height:23px}
+.sakura-home .home-feature.rose .home-feature-icon{color:#963e61}
+.sakura-home .home-feature.mint .home-feature-icon{color:#467b61}
+.sakura-home .home-feature.lilac .home-feature-icon{color:#77549d}
+.sakura-home .home-feature.peach .home-feature-icon{color:#a16445}
