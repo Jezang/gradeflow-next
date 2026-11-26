@@ -1,1 +1,34 @@
 .sakura-login{min-height:100vh;display:grid;grid-template-columns:1fr 1fr;max-width:1100px;align-items:stretch;padding:28px;gap:0}.sakura-art{background:linear-gradient(155deg,#f9dce7,#e3f2e7);border-radius:28px 0 0 28px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px;text-align:center}.sakura-art svg{width:100%;max-width:420px}.sakura-art h2{font-size:30px;line-height:1.5}.sakura-form{background:white;border:1px solid #efdde4;border-radius:0 28px 28px 0;padding:clamp(24px,5vw,56px);display:flex;flex-direction:column;justify-content:center;gap:12px}.sakura-form h1,.sakura-form p{margin:0}.sakura-form form{display:grid;gap:12px}.sakura-form input:not([type=checkbox]){width:100%;padding:12px}.login-status{background:#e7f2e9;border-radius:12px;padding:12px}.login-options{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap}.login-options label{display:flex;align-items:center;gap:6px}.quiet{border:0;padding:4px;background:transparent;color:#944264;text-align:left}.login-divider{text-align:center;color:#65766d}.role-chip{background:#f9dce7;padding:10px;border-radius:10px}.sakura-form a{color:#944264;font-size:13px}.sakura-form button:disabled{opacity:.55;cursor:wait}@media(max-width:740px){.sakura-login{grid-template-columns:1fr;padding:12px}.sakura-art{border-radius:22px 22px 0 0;padding:12px}.sakura-art svg{max-width:180px}.sakura-art h2{font-size:20px}.sakura-art p{display:none}.sakura-form{border-radius:0 0 22px 22px;padding:22px}}
+/* Sakura refresh: shared auth card, accessible controls and narrow-window layout. */
+.sakura-login {max-width:1160px;gap:0;padding:clamp(16px,4vw,48px);min-height:100dvh}
+.sakura-art {border:1px solid #efdee5;border-right:0;background:linear-gradient(150deg,#f9dce9,#f5ece7 52%,#deefe3);padding:clamp(20px,4vw,44px)}
+.sakura-art h2 {font-size:clamp(25px,3vw,36px);line-height:1.35;margin:12px 0 5px}
+.sakura-art p {color:#526b5e;line-height:1.7}
+.sakura-form {min-width:0;gap:15px;box-shadow:8px 15px 44px #8964760b}
+.sakura-form>small:first-child {letter-spacing:.09em;font-size:10px;font-weight:750;color:#963e61}
+.sakura-form h1 {font-size:clamp(27px,3vw,35px);line-height:1.25}
+.sakura-form p {line-height:1.65;overflow-wrap:anywhere}
+.sakura-form label {font-weight:600;color:#43594e}
+.sakura-form input:not([type=checkbox]) {min-height:46px;border-radius:12px;border-color:#e3d8dc}
+.sakura-form button:not(.quiet),.sakura-form a.auth-action {min-height:44px;border-radius:12px}
+.sakura-form .primary {background:#963e61;color:white}
+.sakura-form .primary:hover {background:#803351}
+.sakura-form .quiet {min-height:44px;padding:8px;color:#963e61;font-weight:650}
+.sakura-form .login-status {border:1px solid #d5e8d9;background:#edf5ef;color:#385b46}
+.sakura-form a {color:#963e61;font-weight:650;text-underline-offset:3px}
+.sakura-form a.auth-action {display:flex;justify-content:center;align-items:center;padding:10px 14px;text-decoration:none;border:1px solid #ead9df}
+.sakura-form a:focus-visible,.sakura-form button:focus-visible,.sakura-form input:focus-visible {outline:3px solid #a35c80;outline-offset:3px}
+.sakura-form .login-divider {display:flex;align-items:center;gap:10px;font-size:12px}
+.sakura-form .login-divider:before,.sakura-form .login-divider:after {content:"";height:1px;background:#eadde1;flex:1}
+.auth-register .auth-steps {display:grid;gap:10px;margin:12px 0;padding:0;list-style:none;text-align:left}
+.auth-register .auth-steps li {display:flex;align-items:center;gap:10px;background:#fff8;padding:10px 12px;border-radius:14px}
+.auth-register .auth-steps span {display:grid;place-items:center;flex:none;width:30px;height:30px;border-radius:50%;background:#f4d6e3;color:#843451;font-weight:750}
+@media(max-width:740px) {
+ .sakura-login {min-height:auto;max-width:520px;padding:16px 12px}
+ .sakura-art {border-right:1px solid #efdee5;border-bottom:0;padding:20px 16px}
+ .sakura-art h2 {font-size:24px}
+ .sakura-form {padding:22px 18px}
+ .auth-register .auth-steps {grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+ .auth-register .auth-steps li {flex-direction:column;text-align:center;padding:8px 4px;font-size:11px}
+}
+@media(max-width:350px) {.sakura-form{padding:17px 13px}.sakura-login{padding:9px}.sakura-form .login-options{gap:5px}}
