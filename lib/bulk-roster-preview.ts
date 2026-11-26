@@ -16,8 +16,17 @@ export function previewBulkRoster(
  if (ids.length > 500) return null;
  const masterById = new Map(master.map(student => [student.id, student]));
  const rosterById = new Map(roster.map(student => [student.id, student]));
+ const ambiguous = new Set<string>();
+ for (const records of [master, roster]) {
+  const seen = new Set<string>();
+  for (const {id} of records) {
+   if (seen.has(id)) ambiguous.add(id);
+   seen.add(id);
+  }
+ }
  return ids.map(id => {
   if (!/^[A-Za-z0-9_-]{1,60}$/.test(id)) return { id, status: 'invalid' };
+  if (ambiguous.has(id)) return { id, status: 'unavailable' };
   const student = masterById.get(id);
   if (!student?.active) return { id, status: 'unavailable' };
   const enrolled = rosterById.get(id);
