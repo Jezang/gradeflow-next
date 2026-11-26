@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { summarizeWeightedGrades, weightedGradePreview } from '../lib/weighted-grade-preview.ts';
 import { previewBulkRoster } from '../lib/bulk-roster-preview.ts';
-import { parseQuickScore } from '../lib/quick-score.ts';
+import { matchesScoreFilter, parseQuickScore } from '../lib/quick-score.ts';
 
 const students = [{ id: 'TEST001', name: 'Synthetic One' }, { id: 'TEST002', name: 'Synthetic Two' }];
 const works = [
@@ -78,4 +78,18 @@ test('quick score preserves zero and blank and rejects invalid maximums or score
   assert.deepEqual(parseQuickScore(raw, 10), {ok: false});
  }
  for (const max of [0, -1, NaN, Infinity]) assert.deepEqual(parseQuickScore('', max), {ok: false});
+});
+
+
+test('score table filters distinguish zero, pending and absent scores and search by student', () => {
+ const student = {id: 'TEST001', name: 'นักเรียน ตัวอย่าง'};
+ const zero = {submitted: true, score: 0};
+ const pending = {submitted: true, score: null};
+ assert.equal(matchesScoreFilter(student, zero, 'test001', 'graded'), true);
+ assert.equal(matchesScoreFilter(student, zero, '', 'ungraded'), false);
+ assert.equal(matchesScoreFilter(student, pending, 'ตัวอย่าง', 'ungraded'), true);
+ assert.equal(matchesScoreFilter(student, undefined, '', 'unsubmitted'), true);
+ assert.equal(matchesScoreFilter(student, {submitted: false, score: 0}, '', 'graded'), false);
+ assert.equal(matchesScoreFilter(student, {submitted: true, score: NaN}, '', 'ungraded'), true);
+ assert.equal(matchesScoreFilter(student, pending, 'missing', 'all'), false);
 });
