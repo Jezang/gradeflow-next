@@ -13,6 +13,17 @@ const rosterStatus: Record<RosterPreviewRow['status'], string> = {
  invalid: 'รูปแบบรหัสไม่ถูกต้อง',
 };
 
+function RosterRoomConfirmation({ roomId, count }: { roomId: string; count: number }) {
+ const [checked, setChecked] = useState(false);
+ return <div>
+  <label>
+   <input type="checkbox" checked={checked} onChange={event => setChecked(event.target.checked)} />
+   ตรวจจากรายชื่อห้อง {roomId} แล้วว่านักเรียนทั้ง {count} คนที่ต้องตรวจห้องอยู่ในห้องนี้
+  </label>
+  <p role="status">{checked ? 'ยืนยันห้องสำหรับตัวอย่างนี้แล้ว' : 'ยังไม่ได้ยืนยันห้อง'} · ขั้นตอนนี้ใช้ตรวจตัวอย่างเท่านั้น</p>
+ </div>;
+}
+
 export function BulkRosterPreview({ roomId, ready, students, roster }: {
  roomId: string;
  ready: boolean;
@@ -22,6 +33,7 @@ export function BulkRosterPreview({ roomId, ready, students, roster }: {
  const [raw, setRaw] = useState('');
  const [confirmed, setConfirmed] = useState('');
  const preview = ready && confirmed.trim() ? previewBulkRoster(confirmed, students, roster) : null;
+ const candidates = preview?.filter(row => row.status === 'new' || row.status === 'reactivate') ?? [];
  return <section className="panel">
   <h2>ตรวจรายชื่อก่อนเพิ่มหลายคน</h2>
   <p>ห้อง {roomId} · ระบบตรวจรหัสกับทะเบียนกลางและรายชื่อรายวิชา โปรดตรวจว่านักเรียนอยู่ในห้องนี้ก่อนเพิ่มหรือเปิดใช้งานอีกครั้ง</p>
@@ -35,12 +47,14 @@ export function BulkRosterPreview({ roomId, ready, students, roster }: {
   {!ready && <p role="status">ต้องมีข้อมูลกลางและรายชื่อรายวิชาจากเซิร์ฟเวอร์ครบก่อนตรวจ</p>}
   {ready && confirmed.trim() && !preview && <p role="alert">ตรวจได้สูงสุด 500 รหัส</p>}
   {preview && <>
-   <p role="status">ต้องตรวจห้องก่อนเพิ่มหรือเปิดใช้งาน {preview.filter(row => row.status === 'new' || row.status === 'reactivate').length} จาก {preview.length} รหัส</p>
+   <p role="status">ต้องตรวจห้องก่อนเพิ่มหรือเปิดใช้งาน {candidates.length} จาก {preview.length} รหัส</p>
    <div style={{ overflowX: 'auto' }}><table>
     <thead><tr><th scope="col">รหัส</th><th scope="col">ชื่อ</th><th scope="col">สถานะ</th></tr></thead>
     <tbody>{preview.map(row => <tr key={row.id}><td>{row.id}</td><td>{row.name ?? '—'}</td>
      <td>{rosterStatus[row.status]}</td></tr>)}</tbody>
    </table></div>
+   {candidates.length > 0 && <RosterRoomConfirmation
+    key={JSON.stringify([roomId, preview])} roomId={roomId} count={candidates.length} />}
   </>}
  </section>;
 }
