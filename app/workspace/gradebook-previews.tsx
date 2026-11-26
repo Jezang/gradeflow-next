@@ -24,7 +24,7 @@ export function BulkRosterPreview({ roomId, ready, students, roster }: {
  const preview = ready && confirmed.trim() ? previewBulkRoster(confirmed, students, roster) : null;
  return <section className="panel">
   <h2>ตรวจรายชื่อก่อนเพิ่มหลายคน</h2>
-  <p>ห้อง {roomId} · ใช้รหัสจากรายชื่อของห้องที่เลือก การตรวจนี้ยังไม่บันทึกรายชื่อ</p>
+  <p>ห้อง {roomId} · ตรวจรหัสกับทะเบียนกลางและรายชื่อรายวิชา โปรดยืนยันห้องของนักเรียนจากรายชื่อห้องเรียนก่อนเพิ่ม</p>
   <form onSubmit={event => { event.preventDefault(); if (ready) setConfirmed(raw); }}>
    <label>รหัสนักเรียน คั่นด้วยบรรทัดใหม่หรือจุลภาค
     <textarea rows={4} maxLength={32000} value={raw} disabled={!ready}

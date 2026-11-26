@@ -28,6 +28,8 @@ jobs:
           npm run test:migration
           npm run test:backup
           npm run test:line
+          npm run test:portal
+          node --experimental-strip-types --disable-warning=ExperimentalWarning --test tests/gradebook-previews.test.mjs tests/score-export-xlsx.test.mjs
   firestore:
     runs-on: ubuntu-latest
     timeout-minutes: 20
