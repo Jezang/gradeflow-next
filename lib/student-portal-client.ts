@@ -1,11 +1,12 @@
+import {studentLoginAlias} from './student-login-identity';
 import {studentAuth} from './firebase';
 import {signInWithEmailAndPassword,signOut} from 'firebase/auth';
 import {collection,getDocsFromServer,getFirestore} from 'firebase/firestore';
 import type {StudentWork} from './student-foundation';
 const validId=(v:string)=>/^[A-Za-z0-9_-]{1,128}$/.test(v);
-export async function studentSignIn(email:string,password:string){
+export async function studentSignIn(studentNumber:string,password:string){
  if(process.env.NEXT_PUBLIC_STUDENT_PORTAL_ENABLED!=='true')throw Error('Portal disabled');
- return signInWithEmailAndPassword(studentAuth(),email.trim(),password);
+ return signInWithEmailAndPassword(studentAuth(),studentLoginAlias(studentNumber),password);
 }
 export async function studentSignOut(){await signOut(studentAuth())}
 export async function readStudentWorks(termId:string):Promise<StudentWork[]>{
