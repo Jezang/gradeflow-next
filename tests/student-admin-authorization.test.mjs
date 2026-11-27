@@ -1,0 +1,4 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {authorizeStudentAdmin,authorizeStudentPublisher} from '../lib/student-admin-authorization.ts';
+test('verify revocation and require boolean role claims',async()=>{const verifier=claims=>({verifyIdToken:async(token,revoked)=>{assert.equal(revoked,true);return {uid:'demo',...claims}}});assert.equal(await authorizeStudentAdmin(verifier({admin:true}),'demo'),'demo');assert.equal(await authorizeStudentAdmin(verifier({admin:'true'}),'demo'),null);assert.equal(await authorizeStudentAdmin(verifier({studentPublisher:true}),'demo'),null);assert.equal(await authorizeStudentPublisher(verifier({studentPublisher:true}),'demo'),true);assert.equal(await authorizeStudentPublisher({verifyIdToken:async()=>{throw Error('revoked')}},'demo'),false)});

@@ -1,0 +1,4 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {adminSourceAdapter} from '../lib/student-admin-source-adapter.ts';
+test('source adapter preserves query scope and bound',async()=>{const calls=[];const q={where(...a){calls.push(a);return this},limit(n){calls.push(n);return this}};const adapter=adminSourceAdapter({doc:p=>p,collection:p=>{calls.push(p);return q}},{getDocument:async()=>({exists:false,data:()=>undefined}),getQuery:async()=>({docs:[{id:'synthetic',data:()=>({termId:'t1'})}]})});assert.equal(await adapter.getDocument('terms/t1'),null);assert.deepEqual(await adapter.queryDocuments('teachingAssignments',{field:'termId',value:'t1'},501),[{id:'synthetic',data:{termId:'t1'}}]);assert.deepEqual(calls,['teachingAssignments',['termId','==','t1'],501]);await assert.rejects(adapter.queryDocuments('teachingAssignments',null,502))});

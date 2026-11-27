@@ -1,0 +1,5 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {transactionalTeacherReader} from '../lib/student-source-transaction.ts';
+test('course query is scoped to requested term and bounded',async()=>{const calls=[];const reader=transactionalTeacherReader({getDocument:async()=>null,queryDocuments:async(...args)=>{calls.push(args);return []}},async()=>undefined,async()=>undefined);assert.equal((await reader.listTermCourses('t1')).complete,true);assert.deepEqual(calls,[['teachingAssignments',{field:'termId',value:'t1'},501]]);await reader.listWorks('c1');assert.deepEqual(calls[1],['teachingAssignments/c1/work',null,501])});
+test('truncated query cannot claim completeness',async()=>{const reader=transactionalTeacherReader({getDocument:async()=>null,queryDocuments:async()=>Array.from({length:501},(_,i)=>({id:String(i),data:{}}))},async()=>undefined,async()=>undefined);assert.equal((await reader.listTermCourses('t1')).complete,false);assert.equal((await reader.listWorks('c1')).complete,false)});

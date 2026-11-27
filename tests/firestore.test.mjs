@@ -1,7 +1,7 @@
 import {before,after,test} from 'node:test';
 import {readFileSync} from 'node:fs';
 import {initializeTestEnvironment,assertFails,assertSucceeds} from '@firebase/rules-unit-testing';
-import {doc,getDoc,setDoc,writeBatch,serverTimestamp,collection,getDocs,updateDoc,query,where,Timestamp} from 'firebase/firestore';
+import {doc,getDoc,setDoc,writeBatch,serverTimestamp,collection,getDocs,updateDoc,query,where,Timestamp,deleteDoc} from 'firebase/firestore';
 let env;
 before(async()=>{env=await initializeTestEnvironment({projectId:'demo-gradeflow',firestore:{rules:readFileSync('firestore.rules','utf8')}});await env.clearFirestore();await env.withSecurityRulesDisabled(async c=>{for(const [id,role] of [['owner','super_admin'],['admin','admin'],['teacher','teacher']])await setDoc(doc(c.firestore(),'profiles',id),{role,active:true});});});
 after(async()=>{await env?.cleanup()});
@@ -79,4 +79,71 @@ test('student identities cannot read or forge bindings, enrollments or another s
   await assertFails(getDocs(collection(d,'studentEnrollments')));
   await assertFails(getDocs(collection(d,'students')));
  }
+});
+
+test('student projection is default-off, own-only, read-only and revocable',async()=>{
+ const path=['studentPortalViews','portal-u1','terms','T1','works','W1'];
+ const termPath=path.slice(0,4);
+ const seed=async(fn)=>env.withSecurityRulesDisabled(c=>fn(c.firestore()));
+ const work={id:'W1',course:'Synthetic subject',title:'Synthetic work',maxScore:10,score:0,submitted:true,deadline:null,revisionDeadline:null};
+ const binding={uid:'portal-u1',studentId:'portal-s1',active:true,credentialVersion:'test-version-1'};
+ const owner={studentId:'portal-s1',uid:'portal-u1'};
+ await seed(async d=>{
+  await setDoc(doc(d,...path),work);
+  await setDoc(doc(d,...termPath),{label:'Synthetic term'});
+  await setDoc(doc(d,'studentPortalBindings','portal-u1'),binding);
+  await setDoc(doc(d,'studentPortalOwners','portal-s1'),owner);
+  await setDoc(doc(d,'students','portal-s1'),{active:true});
+ });
+ const sessionClaims={firebase:{sign_in_provider:'custom'},gradeflowStudentSession:'test-version-1'};
+ const studentSession=(uid,claims={})=>env.authenticatedContext(uid,{...sessionClaims,...claims}).firestore();
+ const own=studentSession('portal-u1'),other=studentSession('portal-u2');
+ await assertFails(getDoc(doc(own,...path)));
+ await seed(d=>setDoc(doc(d,'portalConfig','student'),{enabled:true}));
+ try{
+  const ownResult=await assertSucceeds(getDoc(doc(own,...path)));
+  if(ownResult.data()?.score!==0)throw Error('Published zero score was lost');
+  await assertSucceeds(getDocs(collection(own,...path.slice(0,3))));
+  await assertFails(getDocs(collection(db('portal-u1'),...path.slice(0,3))));
+  await assertFails(getDoc(doc(studentSession('portal-u1',{gradeflowStudentSession:'old-version'}),...path)));
+  await assertFails(getDoc(doc(studentSession('portal-u1',{firebase:{sign_in_provider:'password'}}),...path)));
+  await assertFails(getDocs(collection(other,...path.slice(0,3))));
+  await assertFails(updateDoc(doc(own,...termPath),{label:'changed'}));
+  await assertSucceeds(getDocs(collection(own,...path.slice(0,-1))));
+  await seed(d=>updateDoc(doc(d,'students','portal-s1'),{active:false}));
+  await assertFails(getDocs(collection(own,...path.slice(0,3))));
+  await assertFails(getDoc(doc(own,...path)));
+  await seed(d=>updateDoc(doc(d,'students','portal-s1'),{active:true}));
+  await assertFails(getDoc(doc(other,...path)));
+  await assertFails(getDoc(doc(env.unauthenticatedContext().firestore(),...path)));
+  await assertFails(updateDoc(doc(own,...path),{score:10}));
+  await assertFails(deleteDoc(doc(own,...path)));
+  await assertFails(setDoc(doc(own,...path.slice(0,-1),'w2'),{...work,id:'w2'}));
+  await assertFails(getDocs(collection(db('owner'),...path.slice(0,-1))));
+  await assertFails(updateDoc(doc(own,'portalConfig','student'),{enabled:false}));
+  await assertFails(setDoc(doc(other,'studentPortalBindings','portal-u2'),{studentId:'portal-s1',active:true}));
+  await assertFails(getDoc(doc(own,'studentPortalBindings','portal-u1')));
+  await seed(d=>updateDoc(doc(d,'studentPortalOwners','portal-s1'),{uid:'portal-u2'}));
+  await assertFails(getDoc(doc(own,...path)));
+  await seed(async d=>{
+   await setDoc(doc(d,'studentPortalOwners','portal-s1'),owner);
+   await setDoc(doc(d,'studentPortalBindings','portal-u1'),{...binding,minAuthTime:100});
+  });
+  const oldSession=studentSession('portal-u1',{auth_time:99});
+  const newSession=studentSession('portal-u1',{auth_time:100});
+  await assertFails(getDoc(doc(oldSession,...path)));
+  await assertSucceeds(getDoc(doc(newSession,...path)));
+  await seed(d=>setDoc(doc(d,'studentPortalBindings','portal-u1'),{...binding,credentialVersion:'test-version-2',minAuthTime:100}));
+  const rotatedSession=studentSession('portal-u1',{auth_time:100,gradeflowStudentSession:'test-version-2'});
+  await assertFails(getDoc(doc(newSession,...path)));
+  await assertSucceeds(getDoc(doc(rotatedSession,...path)));
+  await seed(d=>deleteDoc(doc(d,...termPath)));
+  await assertFails(getDoc(doc(rotatedSession,...path)));
+  await assertFails(getDocs(collection(rotatedSession,...path.slice(0,-1))));
+  await seed(async d=>{
+   await setDoc(doc(d,...termPath),{label:'Synthetic term'});
+   await setDoc(doc(d,'studentPortalBindings','portal-u1'),{...binding,active:false});
+  });
+  await assertFails(getDoc(doc(own,...path)));
+ }finally{await seed(d=>setDoc(doc(d,'portalConfig','student'),{enabled:false}))}
 });
