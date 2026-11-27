@@ -1,5 +1,6 @@
 import {mapTeacherWork} from './student-source-mapper.ts';
 import type {MembershipWindow} from './student-historical-work';
+import type {Attendance} from './work-tracking';
 import type {SourceWork} from './student-projection-plan';
 type Row=Record<string,unknown>;
 type Doc={id:string;data:Row};
@@ -8,7 +9,7 @@ export interface TeacherSourceReader {
  listTermCourses(termId:string):Promise<{docs:readonly Doc[];complete:boolean}>;
  listWorks(courseId:string):Promise<{docs:readonly Doc[];complete:boolean}>;
  membershipWindows(studentId:string,termId:string,courseId:string):Promise<readonly MembershipWindow[]|undefined>;
- attendance(courseId:string,workId:string,studentId:string):Promise<'leave'|'absent'|undefined>;
+ attendance(courseId:string,workId:string,studentId:string):Promise<Attendance|undefined>;
 }
 export async function readTeacherSource(reader:TeacherSourceReader,studentId:string,termId:string):Promise<{label:string;rows:SourceWork[];complete:true}>{
  const valid=(s:string)=>/^[A-Za-z0-9_-]{1,128}$/.test(s);

@@ -9,3 +9,11 @@ test('reject mismatched student and represent missing submission',()=>{assert.th
 test('attendance applies only to outstanding work',()=>{assert.equal(mapTeacherWork({...input,submission:null,attendance:'leave'}).attendance,'leave');assert.equal(mapTeacherWork({...input,submission:null,attendance:'absent'}).attendance,'absent');assert.equal(mapTeacherWork({...input,attendance:'absent'}).attendance,undefined)});
 
 test('historical membership preserves old work but excludes later assignments',()=>{const membershipWindows=[{studentId:'s1',termId:'t1',courseId:'c1',from:10,until:20}];const historical={...input,roster:null,membershipWindows,work:{...input.work,createdAt:{toMillis:()=>15}}};assert.equal(mapTeacherWork(historical).score,0);assert.equal(mapTeacherWork({...historical,work:{...historical.work,createdAt:{toMillis:()=>20}}}),null);assert.equal(mapTeacherWork({...historical,membershipWindows:[]}),null)});
+
+test('legacy attendance follows the staff workflow and an explicit missing mark clears it',()=>{
+ const submission={studentId:'s1',submitted:false,score:null,legacy:{status:'leave'}};
+ assert.equal(mapTeacherWork({...input,submission}).attendance,'leave');
+ assert.equal(mapTeacherWork({...input,submission,attendance:'missing'}).attendance,undefined);
+ assert.equal(mapTeacherWork({...input,submission,attendance:'absent'}).attendance,'absent');
+ assert.equal(mapTeacherWork({...input,submission:{...submission,auditId:'updated'}}).attendance,undefined);
+});

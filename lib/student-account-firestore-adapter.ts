@@ -4,7 +4,7 @@ import {authorizeStudentAdmin,type IdentityVerifier} from './student-admin-autho
 interface Snapshot {exists:boolean;data():unknown}
 interface Transaction {get(ref:unknown):Promise<Snapshot>;set(ref:unknown,data:object):unknown}
 export interface AccountStore {doc(path:string):unknown;runTransaction<T>(fn:(tx:Transaction)=>Promise<T>):Promise<T>}
-export function accountFirestoreBackend(store:AccountStore,identity:IdentityVerifier,authExists:(uid:string)=>Promise<boolean>,enabled:()=>Promise<boolean>):TrustedAccountBackend{
+export function accountFirestoreBackend(store:AccountStore,identity:IdentityVerifier,authExists:TrustedAccountBackend['authExists'],enabled:()=>Promise<boolean>):TrustedAccountBackend{
  return {enabled,authExists,authorizeAdmin:token=>authorizeStudentAdmin(identity,token),transaction:run=>store.runTransaction(async tx=>{
  const read=async(path:string)=>{const snap=await tx.get(store.doc(path));return snap.exists?snap.data():null};
  const adapter:AccountTransaction={

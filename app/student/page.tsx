@@ -1,26 +1,111 @@
 'use client';
-import {useState,useEffect,useRef,type FormEvent} from 'react';
-import {studentSignIn,studentSignOut,readStudentWorks,readStudentTerms} from '../../lib/student-portal-client';
-import {sakuraMilestones} from '../../lib/student-sakura-progress';
+
+import {useEffect, useState, type FormEvent} from 'react';
+import {onAuthStateChanged, type User} from 'firebase/auth';
 import {studentAuth} from '../../lib/firebase';
-import {onAuthStateChanged} from 'firebase/auth';
-import {studentProgress,studentWorkState,type StudentWork} from '../../lib/student-foundation';
+import {readStudentTerms, readStudentWorks, studentSignIn, studentSignOut} from '../../lib/student-portal-client';
+import {StudentDashboard} from './student-dashboard';
 import '../student-preview/student-preview.css';
-const enabled=process.env.NEXT_PUBLIC_STUDENT_PORTAL_ENABLED==='true';
-const labels={graded:'ตรวจแล้ว',pending:'ส่งแล้ว รอคะแนน',missing:'ยังไม่ส่ง',leave:'ลา',absent:'ขาด',revision:'อยู่ในช่วงแก้งาน',overdue:'เลยกำหนด'};
-export default function StudentPage(){
- const [uid,setUid]=useState(''),[ready,setReady]=useState(false),[studentNumber,setStudentNumber]=useState(''),[password,setPassword]=useState(''),[term,setTerm]=useState(''),[works,setWorks]=useState<StudentWork[]>([]),[loaded,setLoaded]=useState(false),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
- const [terms,setTerms]=useState<{id:string;label:string}[]>([]),[termsReady,setTermsReady]=useState(false);
- const generation=useRef(0);
- useEffect(()=>{if(!enabled)return;return onAuthStateChanged(studentAuth(),u=>{generation.current++;setUid(u?.uid??'');setTerms([]);setTerm('');setTermsReady(false);setWorks([]);setLoaded(false);setBusy(false);setMessage('');setReady(true)})},[]);
- useEffect(()=>{if(!uid)return;let cancelled=false;readStudentTerms().then(rows=>{if(!cancelled){setTerms(rows);setTerm(rows[0]?.id??'');setTermsReady(true)}}).catch(()=>{if(!cancelled)setMessage('ไม่สามารถโหลดภาคเรียนได้ กรุณาเข้าสู่ระบบใหม่')});return()=>{cancelled=true}},[uid]);
- async function login(e:FormEvent){e.preventDefault();setBusy(true);setMessage('');try{await studentSignIn(studentNumber,password)}catch{setMessage('เข้าสู่ระบบไม่สำเร็จ กรุณาตรวจสอบบัญชี')}finally{setPassword('');setBusy(false)}}
- async function load(e:FormEvent){e.preventDefault();const ticket=++generation.current;setWorks([]);setLoaded(false);setBusy(true);setMessage('');try{const rows=await readStudentWorks(term);if(ticket===generation.current){setWorks(rows);setLoaded(true)}}catch{if(ticket===generation.current)setMessage('ไม่สามารถอ่านข้อมูลได้ กรุณาติดต่อผู้ดูแล')}finally{if(ticket===generation.current)setBusy(false)}}
- async function logout(){generation.current++;setWorks([]);setLoaded(false);setBusy(true);try{await studentSignOut()}catch{setMessage('ออกจากระบบไม่สำเร็จ กรุณาลองอีกครั้ง')}finally{setBusy(false)}}
- const p=studentProgress(works),sakura=sakuraMilestones(works);
- const stages={seed:'🌰 เมล็ดพันธุ์',sprout:'🌱 ต้นอ่อน',blossom:'🌿 กำลังเติบโต',bloom:'🌸 ผลิบาน'};
- const badges:Record<string,string>={'first-submission':'ส่งงานครั้งแรก','all-submitted':'ส่งงานครบ','all-graded':'ตรวจงานครบ'};
- return <main className="student-preview"><header><span className="student-avatar">🌸</span><small>GRADEFLOW · SAKURA CLASSROOM</small><h1>ระบบนักเรียน</h1></header>
- {!enabled?<section><h2>ยังไม่เปิดให้บริการ</h2><p>ระบบกำลังเตรียมความพร้อม</p><a href="/student-preview">ทดลองหน้าจอจำลอง</a></section>:!ready?<p>กำลังตรวจสอบบัญชี…</p>:!uid?<section><h2>เข้าสู่ระบบ</h2><form onSubmit={login}><label>รหัสประจำตัวนักเรียน<input type="text" inputMode="numeric" pattern="[0-9]{1,32}" autoComplete="username" required value={studentNumber} onChange={e=>setStudentNumber(e.target.value)}/></label><label>รหัสผ่าน<input type="password" autoComplete="current-password" required value={password} onChange={e=>setPassword(e.target.value)}/></label><button disabled={busy}>เข้าสู่ระบบ</button></form></section>:<><section><button disabled={busy} onClick={logout}>ออกจากระบบ</button><form onSubmit={load}><label>ภาคเรียน<select required disabled={!termsReady||busy} value={term} onChange={e=>{generation.current++;setTerm(e.target.value);setWorks([]);setLoaded(false)}}><option value="">{termsReady?"เลือกภาคเรียน":"กำลังโหลด…"}</option>{terms.map(t=><option key={t.id} value={t.id}>{t.label}</option>)}</select></label>{termsReady&&terms.length===0&&<p>ยังไม่มีภาคเรียนที่เผยแพร่</p>}<button disabled={busy||!term||!termsReady}>ดูงานของฉัน</button></form></section>{loaded&&<><section className="student-metrics">{[[p.total,'งานทั้งหมด'],[p.submitted,'ส่งแล้ว'],[p.outstanding,'งานค้าง'],[p.points+' / '+p.possible,'คะแนนที่ตรวจแล้ว']].map(([n,l])=><div key={l}><strong>{n}</strong><small>{l}</small></div>)}</section><section className="student-champion"><h2>🌸 Sakura Champions</h2><h3>{stages[sakura.stage]}</h3><p>ส่งงานแล้ว {p.submitted} จาก {p.total} งาน</p><progress max={Math.max(1,p.total)} value={p.submitted}/><p>ตรวจแล้ว {sakura.graded} งาน</p>{sakura.badges.map(b=><p key={b}>🏅 {badges[b]}</p>)}</section><section><h2>งานของฉัน</h2>{works.length===0&&<p>ไม่พบงานในภาคเรียนนี้</p>}{works.map(w=><article key={w.id}><small>{w.course}</small><h3>{w.title}</h3><p>{labels[studentWorkState(w,Date.now())]}</p><p>คะแนน {w.score??'—'} / {w.maxScore}</p></article>)}</section></>}</>}
- {message&&<p role="alert">{message}</p>}</main>
+import './student.css';
+
+const enabled = process.env.NEXT_PUBLIC_STUDENT_PORTAL_ENABLED === 'true';
+
+type Session =
+  | {state: 'checking' | 'error' | 'signed-out'}
+  | {state: 'signed-in'; user: User};
+
+export default function StudentPage() {
+  const [session, setSession] = useState<Session>({state: 'checking'});
+  const [authAttempt, setAuthAttempt] = useState(0);
+  const [theme, setTheme] = useState<'sakura' | 'mint'>('sakura');
+
+  useEffect(() => {
+    if (!enabled) return;
+    try {
+      return onAuthStateChanged(studentAuth(), (user) => {
+        setSession(user ? {state: 'signed-in', user} : {state: 'signed-out'});
+      }, () => setSession({state: 'error'}));
+    } catch {
+      setSession({state: 'error'});
+    }
+  }, [authAttempt]);
+
+  return (
+    <main className="student-preview student-portal" data-theme={theme}>
+      <header id="student-overview">
+        <span className="student-avatar" aria-hidden="true">🌸</span>
+        <h1>ระบบนักเรียน</h1>
+      </header>
+      {!enabled ? (
+        <section>
+          <h2>ยังไม่เปิดให้บริการ</h2>
+          <a href="/student-preview">ทดลองหน้าจอจำลอง</a>
+        </section>
+      ) : session.state === 'checking' ? (
+        <p role="status">กำลังตรวจสอบบัญชี…</p>
+      ) : session.state === 'error' ? (
+        <section>
+          <p role="alert">ตรวจสอบบัญชีไม่ได้</p>
+          <button type="button" onClick={() => {
+            setSession({state: 'checking'});
+            setAuthAttempt((attempt) => attempt + 1);
+          }}>ลองอีกครั้ง</button>
+        </section>
+      ) : session.state === 'signed-in' ? (
+        <StudentDashboard
+          key={session.user.uid}
+          readTerms={readStudentTerms}
+          readWorks={readStudentWorks}
+          signOut={studentSignOut}
+          theme={theme}
+          setTheme={setTheme}
+        />
+      ) : (
+        <StudentLogin />
+      )}
+    </main>
+  );
+}
+
+function StudentLogin() {
+  const [studentNumber, setStudentNumber] = useState('');
+  const [password, setPassword] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState('');
+
+  async function login(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (busy) return;
+    setBusy(true);
+    setMessage('');
+    try {
+      await studentSignIn(studentNumber, password);
+    } catch {
+      setMessage('เข้าสู่ระบบไม่สำเร็จ กรุณาตรวจสอบรหัสประจำตัวและรหัสผ่าน หรือติดต่อผู้ดูแลโรงเรียน');
+    } finally {
+      setPassword('');
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section>
+      <h2>เข้าสู่ระบบ</h2>
+      <form className="student-portal-form" onSubmit={login}>
+        <label>
+          รหัสประจำตัวนักเรียน
+          <input inputMode="numeric" pattern="[0-9]{1,32}" maxLength={32} autoComplete="username" required
+            disabled={busy} value={studentNumber} onChange={(event) => setStudentNumber(event.target.value)} />
+        </label>
+        <label>
+          รหัสผ่าน
+          <input type="password" autoComplete="current-password" required
+            disabled={busy} value={password} onChange={(event) => setPassword(event.target.value)} />
+        </label>
+        <button type="submit" disabled={busy}>{busy ? 'กำลังเข้าสู่ระบบ…' : 'เข้าสู่ระบบ'}</button>
+      </form>
+      {message && <p role="alert">{message}</p>}
+      <p>เข้าครั้งแรกหรือลืมรหัสผ่าน ให้ติดต่อผู้ดูแลโรงเรียน</p>
+    </section>
+  );
 }

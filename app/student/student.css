@@ -1,0 +1,60 @@
+.student-preview.student-portal {
+  overflow-wrap: anywhere;
+}
+
+.student-portal :is(button, input, select) {
+  min-height: 44px;
+}
+
+.student-portal :is(input, select, a):focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.student-portal button:disabled {
+  cursor: wait;
+}
+
+.student-portal-form {
+  display: grid;
+  gap: 12px;
+  max-width: 28rem;
+}
+
+.student-portal-filters {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.student-portal-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0;
+  list-style: none;
+}
+
+.student-portal-badges li {
+  padding: 6px 10px;
+  border-radius: 12px;
+  background: var(--soft);
+}
+
+.student-portal .student-calendar strong {
+  display: block;
+}
+
+.student-portal .student-nav a {
+  text-align: center;
+}
+
+.student-portal [id] {
+  scroll-margin-bottom: calc(80px + env(safe-area-inset-bottom));
+}
+
+@media (max-width: 360px) {
+  .student-portal-filters {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

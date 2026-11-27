@@ -1,7 +1,8 @@
 import type {SourceWork} from './student-projection-plan';
 import {historicalWorkEligible,type MembershipWindow} from './student-historical-work.ts';
+import {attendanceFor,type Attendance} from './work-tracking.ts';
 type Row=Record<string,unknown>;
-export function mapTeacherWork(input:{courseId:string;workId:string;studentId:string;termId:string;course:Row;roster:Row|null;work:Row;submission:Row|null;attendance?:'leave'|'absent';membershipWindows?:readonly MembershipWindow[]}):SourceWork|null{
+export function mapTeacherWork(input:{courseId:string;workId:string;studentId:string;termId:string;course:Row;roster:Row|null;work:Row;submission:Row|null;attendance?:Attendance;membershipWindows?:readonly MembershipWindow[]}):SourceWork|null{
  const {courseId,workId,studentId,termId,course,roster,work,submission}=input;
  if(course.termId!==termId||work.active!==true)return null;
  if(input.membershipWindows===undefined&&(!roster||roster.active!==true))return null;
@@ -16,5 +17,9 @@ export function mapTeacherWork(input:{courseId:string;workId:string;studentId:st
  if(submission&&typeof submission.submitted!=='boolean')throw Error('Invalid submission');
  const score=submission?submission.score:null;
  if(score!==null&&typeof score!=='number')throw Error('Invalid source score');
- return {id,studentId,termId,active:true,course:course.subjectId,title:work.title,maxScore:work.maxScore,submitted:submission?.submitted===true,score,...(submission?.submitted!==true&&input.attendance?{attendance:input.attendance}:{}),deadline:date(work.deadline),revisionDeadline:date(work.revisionDeadline)};
+ const submitted=submission?.submitted===true;
+ const legacy=submission?.legacy;
+ const legacyStatus=!submission?.auditId&&legacy&&typeof legacy==='object'&&'status' in legacy?legacy.status:undefined;
+ const attendance=attendanceFor(submitted,input.attendance,legacyStatus);
+ return {id,studentId,termId,active:true,course:course.subjectId,title:work.title,maxScore:work.maxScore,submitted,score,...(attendance?{attendance}:{}),deadline:date(work.deadline),revisionDeadline:date(work.revisionDeadline)};
 }

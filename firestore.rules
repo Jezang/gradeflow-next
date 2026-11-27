@@ -1,3 +1,5 @@
+// Student Portal projections contain a term label and allowlisted work results.
+// Trusted writers maintain the private UID binding and reciprocal student owner.
 rules_version = '2';
 service cloud.firestore {
  match /databases/{database}/documents {
@@ -210,19 +212,38 @@ service cloud.firestore {
   function studentPortalEnabled(){
    return get(/databases/$(database)/documents/portalConfig/student).data.enabled == true;
   }
+  function currentStudentSession(binding){
+   let minAuthTime = binding.get('minAuthTime', 0);
+   return minAuthTime is int && minAuthTime >= 0
+     && (minAuthTime == 0 || (request.auth.token.auth_time is int
+       && request.auth.token.auth_time >= minAuthTime));
+  }
+  function studentPortalBindingMatches(uid, binding){
+   return binding.uid == uid && binding.active == true
+     && binding.studentId is string && binding.studentId.matches('^[A-Za-z0-9_-]{1,128}$')
+     && binding.credentialVersion is string && binding.credentialVersion.size() > 0
+     && request.auth.token.gradeflowStudentSession == binding.credentialVersion
+     && currentStudentSession(binding)
+     && studentPortalOwnerMatches(uid, binding.studentId);
+  }
+  function studentPortalOwnerMatches(uid, sid){
+   let owner = get(/databases/$(database)/documents/studentPortalOwners/$(sid)).data;
+   return owner.uid == uid && owner.studentId == sid
+     && get(/databases/$(database)/documents/students/$(sid)).data.active == true;
+  }
   function studentPortalOwn(uid){
-   return own(uid) && studentPortalEnabled()
-     && get(/databases/$(database)/documents/studentPortalBindings/$(uid)).data.active == true
-     && get(/databases/$(database)/documents/studentPortalBindings/$(uid)).data.studentId is string
-     && get(/databases/$(database)/documents/studentPortalOwners/$(get(/databases/$(database)/documents/studentPortalBindings/$(uid)).data.studentId)).data.uid == uid;
+   return own(uid) && request.auth.token.firebase.sign_in_provider == 'custom'
+     && studentPortalEnabled()
+     && studentPortalBindingMatches(uid, get(/databases/$(database)/documents/studentPortalBindings/$(uid)).data);
   }
   match /studentPortalViews/{uid}/terms/{termId} {
-   allow get, list: if studentPortalOwn(uid);
+   allow read: if studentPortalOwn(uid);
    allow write: if false;
   }
   match /studentPortalViews/{uid}/terms/{termId}/works/{workId} {
-   allow get, list: if studentPortalOwn(uid);
-   allow create, update, delete: if false;
+   allow read: if studentPortalOwn(uid)
+     && exists(/databases/$(database)/documents/studentPortalViews/$(uid)/terms/$(termId));
+   allow write: if false;
   }
   match /studentPortalBindings/{uid} { allow read, write: if false; }
   match /studentPortalOwners/{sid} { allow read, write: if false; }
