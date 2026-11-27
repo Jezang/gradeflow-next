@@ -1,6 +1,6 @@
 import type {SourceWork} from './student-projection-plan';
 type Row=Record<string,unknown>;
-export function mapTeacherWork(input:{courseId:string;workId:string;studentId:string;termId:string;course:Row;roster:Row|null;work:Row;submission:Row|null}):SourceWork|null{
+export function mapTeacherWork(input:{courseId:string;workId:string;studentId:string;termId:string;course:Row;roster:Row|null;work:Row;submission:Row|null;attendance?:'leave'|'absent'}):SourceWork|null{
  const {courseId,workId,studentId,termId,course,roster,work,submission}=input;
  if(course.termId!==termId||!roster||roster.active!==true||work.active!==true)return null;
  if(roster.studentId!==studentId||(submission&&submission.studentId!==studentId))throw Error('Student identity mismatch');
@@ -13,5 +13,5 @@ export function mapTeacherWork(input:{courseId:string;workId:string;studentId:st
  if(submission&&typeof submission.submitted!=='boolean')throw Error('Invalid submission');
  const score=submission?submission.score:null;
  if(score!==null&&typeof score!=='number')throw Error('Invalid source score');
- return {id,studentId,termId,active:true,course:course.subjectId,title:work.title,maxScore:work.maxScore,submitted:submission?.submitted===true,score,deadline:date(work.deadline),revisionDeadline:date(work.revisionDeadline)};
+ return {id,studentId,termId,active:true,course:course.subjectId,title:work.title,maxScore:work.maxScore,submitted:submission?.submitted===true,score,...(submission?.submitted!==true&&input.attendance?{attendance:input.attendance}:{}),deadline:date(work.deadline),revisionDeadline:date(work.revisionDeadline)};
 }
