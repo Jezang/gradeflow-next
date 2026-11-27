@@ -15,13 +15,13 @@ export default function StudentPreview(){
  const [course,setCourse]=useState(''),[theme,setTheme]=useState('sakura');
  const p=studentProgress(works);
  return <main className="student-preview" data-theme={theme}>
- <header><small>SAKURA CLASSROOM · DEMO ONLY</small><h1>สวัสดี นักเรียนจำลอง 🌸</h1><p>ม.2/2 · เลขที่ 7 · ข้อมูลสมมติทั้งหมด</p></header>
+ <header id="overview"><span className="student-avatar" aria-hidden="true">🌸</span><small>SAKURA CLASSROOM · DEMO ONLY</small><h1>สวัสดี นักเรียนจำลอง 🌸</h1><p>ม.2/2 · เลขที่ 7 · ข้อมูลสมมติทั้งหมด</p></header>
  <section className="student-metrics" aria-label="ภาพรวมงาน">
  {[[p.total,'งานทั้งหมด'],[p.submitted,'ส่งแล้ว'],[p.outstanding,'งานค้าง'],[p.points+' / '+p.possible,'คะแนนที่ตรวจแล้ว']].map(([n,l])=><div key={l}><strong>{n}</strong><small>{l}</small></div>)}
  </section>
- <section className="student-champion"><h2>🌱 Sakura Champions</h2><p>ส่งงานแล้ว {p.submitted} จาก {p.total} งาน</p><progress max={p.total} value={p.submitted}/><small>ความสำเร็จส่วนตัว ไม่จัดอันดับเพื่อน</small></section>
- <section><h2>งานของฉัน</h2><label>รายวิชา<select value={course} onChange={e=>setCourse(e.target.value)}><option value="">ทุกวิชา</option>{[...new Set(works.map(w=>w.course))].map(c=><option key={c}>{c}</option>)}</select></label>
+ <section className="student-champion"><div className="student-tree" aria-hidden="true">{p.submitted===p.total?"🌸":p.submitted>0?"🌿":"🌱"}</div><h2>🌱 Sakura Champions</h2><p>ส่งงานแล้ว {p.submitted} จาก {p.total} งาน</p><progress max={p.total} value={p.submitted}/><small>ความสำเร็จส่วนตัว ไม่จัดอันดับเพื่อน</small></section>
+ <section id="works"><h2>งานของฉัน</h2><label>รายวิชา<select value={course} onChange={e=>setCourse(e.target.value)}><option value="">ทุกวิชา</option>{[...new Set(works.map(w=>w.course))].map(c=><option key={c}>{c}</option>)}</select></label>
  {works.filter(w=>!course||w.course===course).map(w=>{const state=studentWorkState(w,now);return <article key={w.id}><small>{w.course}</small><h3>{w.title}</h3><span className="student-status" data-state={state}>{labels[state]}</span><p>คะแนน {w.score===null?'—':w.score} / {w.maxScore}</p><small>ส่ง {date(w.deadline)} · แก้ {date(w.revisionDeadline)}</small></article>})}
- </section><section><h2>โปรไฟล์จำลอง</h2><label>ธีม<select value={theme} onChange={e=>setTheme(e.target.value)}><option value="sakura">Sakura</option><option value="mint">Mint</option></select></label></section>
- <footer>ต้นแบบออฟไลน์ · ไม่เชื่อม Firebase · ไม่ใช่คะแนนจริง</footer></main>
+ </section><section id="calendar"><h2>กำหนดส่งและแก้งาน</h2><ul className="student-calendar">{works.flatMap(w=>[{id:w.id+"-due",title:w.title,kind:"ส่งงาน",at:w.deadline},{id:w.id+"-revision",title:w.title,kind:"แก้งาน",at:w.revisionDeadline}]).filter(e=>e.at!==null).sort((a,b)=>(a.at??0)-(b.at??0)).map(e=><li key={e.id}><strong>{date(e.at)}</strong> · {e.kind}<br/>{e.title}</li>)}</ul></section><section id="profile"><h2>โปรไฟล์จำลอง</h2><label>ธีม<select value={theme} onChange={e=>setTheme(e.target.value)}><option value="sakura">Sakura</option><option value="mint">Mint</option></select></label></section>
+ <footer>ต้นแบบออฟไลน์ · ไม่เชื่อม Firebase · ไม่ใช่คะแนนจริง</footer><nav className="student-nav" aria-label="เมนูนักเรียน"><a href="#overview">⌂<span>หน้าหลัก</span></a><a href="#works">▤<span>งานของฉัน</span></a><a href="#calendar">▦<span>กำหนดส่ง</span></a><a href="#profile">◎<span>โปรไฟล์</span></a></nav></main>
 }
