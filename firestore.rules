@@ -206,6 +206,23 @@ service cloud.firestore {
      && request.time.toMillis() < (request.resource.data.bucket + 1) * 30000;
    allow read, update, delete: if false;
   }
+  // Trusted backend provisioning only. Disabled until explicitly released.
+  function studentPortalEnabled(){
+   return get(/databases/$(database)/documents/portalConfig/student).data.enabled == true;
+  }
+  function studentPortalOwn(uid){
+   return own(uid) && studentPortalEnabled()
+     && get(/databases/$(database)/documents/studentPortalBindings/$(uid)).data.active == true
+     && get(/databases/$(database)/documents/studentPortalBindings/$(uid)).data.studentId is string
+     && get(/databases/$(database)/documents/studentPortalOwners/$(get(/databases/$(database)/documents/studentPortalBindings/$(uid)).data.studentId)).data.uid == uid;
+  }
+  match /studentPortalViews/{uid}/terms/{termId}/works/{workId} {
+   allow get, list: if studentPortalOwn(uid);
+   allow create, update, delete: if false;
+  }
+  match /studentPortalBindings/{uid} { allow read, write: if false; }
+  match /studentPortalOwners/{sid} { allow read, write: if false; }
+  match /portalConfig/{id} { allow read, write: if false; }
   match /{kind}/{id} {
    allow read: if kind in ['students','rooms','subjects','terms'] && admin();
    allow create: if kind in ['students','rooms','subjects','terms'] && admin()
