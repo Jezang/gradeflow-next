@@ -1,7 +1,7 @@
 'use client';
 import {useState,useEffect,useRef,type FormEvent} from 'react';
 import {studentSignIn,studentSignOut,readStudentWorks,readStudentTerms} from '../../lib/student-portal-client';
-import {portalAuth} from '../../lib/firebase';
+import {studentAuth} from '../../lib/firebase';
 import {onAuthStateChanged} from 'firebase/auth';
 import {studentProgress,studentWorkState,type StudentWork} from '../../lib/student-foundation';
 import '../student-preview/student-preview.css';
@@ -11,7 +11,7 @@ export default function StudentPage(){
  const [uid,setUid]=useState(''),[ready,setReady]=useState(false),[email,setEmail]=useState(''),[password,setPassword]=useState(''),[term,setTerm]=useState(''),[works,setWorks]=useState<StudentWork[]>([]),[loaded,setLoaded]=useState(false),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
  const [terms,setTerms]=useState<{id:string;label:string}[]>([]),[termsReady,setTermsReady]=useState(false);
  const generation=useRef(0);
- useEffect(()=>{if(!enabled)return;return onAuthStateChanged(portalAuth(),u=>{generation.current++;setUid(u?.uid??'');setTerms([]);setTerm('');setTermsReady(false);setWorks([]);setLoaded(false);setBusy(false);setMessage('');setReady(true)})},[]);
+ useEffect(()=>{if(!enabled)return;return onAuthStateChanged(studentAuth(),u=>{generation.current++;setUid(u?.uid??'');setTerms([]);setTerm('');setTermsReady(false);setWorks([]);setLoaded(false);setBusy(false);setMessage('');setReady(true)})},[]);
  useEffect(()=>{if(!uid)return;let cancelled=false;readStudentTerms().then(rows=>{if(!cancelled){setTerms(rows);setTerm(rows[0]?.id??'');setTermsReady(true)}}).catch(()=>{if(!cancelled)setMessage('ไม่สามารถโหลดภาคเรียนได้ กรุณาเข้าสู่ระบบใหม่')});return()=>{cancelled=true}},[uid]);
  async function login(e:FormEvent){e.preventDefault();setBusy(true);setMessage('');try{await studentSignIn(email,password)}catch{setMessage('เข้าสู่ระบบไม่สำเร็จ กรุณาตรวจสอบบัญชี')}finally{setPassword('');setBusy(false)}}
  async function load(e:FormEvent){e.preventDefault();const ticket=++generation.current;setWorks([]);setLoaded(false);setBusy(true);setMessage('');try{const rows=await readStudentWorks(term);if(ticket===generation.current){setWorks(rows);setLoaded(true)}}catch{if(ticket===generation.current)setMessage('ไม่สามารถอ่านข้อมูลได้ กรุณาติดต่อผู้ดูแล')}finally{if(ticket===generation.current)setBusy(false)}}
