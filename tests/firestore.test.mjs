@@ -58,3 +58,25 @@ test('advisor scope, deadline and attendance writes are separated from scoring',
  await assertSucceeds(getDoc(sub(other)));await assertFails(setDoc(att(teacher),payload));
  await assertSucceeds(setDoc(grant(owner),{roomId:'R1',active:false,updatedBy:'owner',updatedAt:serverTimestamp()}));await assertFails(getDoc(work(other)));
 });
+
+test('student identities cannot read or forge bindings, enrollments or another student projection while gated',async()=>{
+ const a='synthetic-a',b='synthetic-b';
+ await env.withSecurityRulesDisabled(async c=>{
+  for(const uid of [a,b]){
+   await setDoc(doc(c.firestore(),'studentBindings',uid),{uid,studentId:uid,active:true});
+   await setDoc(doc(c.firestore(),'portalViews',uid),{uid,studentId:uid,role:'student',active:true,results:[]});
+  }
+  await setDoc(doc(c.firestore(),'studentEnrollments','synthetic-enrollment'),{studentId:b,termId:'demo',roomId:'demo',no:1});
+ });
+ for(const uid of [a,b]){
+  const d=db(uid);
+  for(const target of [a,b]){
+   await assertFails(getDoc(doc(d,'studentBindings',target)));
+   await assertFails(getDoc(doc(d,'portalViews',target)));
+   await assertFails(setDoc(doc(d,'studentBindings',target),{uid,studentId:target,active:true}));
+  }
+  await assertFails(getDoc(doc(d,'studentEnrollments','synthetic-enrollment')));
+  await assertFails(getDocs(collection(d,'studentEnrollments')));
+  await assertFails(getDocs(collection(d,'students')));
+ }
+});
