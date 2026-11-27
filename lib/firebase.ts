@@ -17,3 +17,5 @@ export function portalAuth() {
     ? getAuth(existing)
     : initializeAuth(initializeApp(firebaseConfig, name), { persistence: inMemoryPersistence });
 }
+
+export function studentAuth() { const name = 'gradeflow-student'; const existing = getApps().find(app => app.name === name); return existing ? getAuth(existing) : initializeAuth(initializeApp(firebaseConfig, name), { persistence: inMemoryPersistence }); }
