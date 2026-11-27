@@ -1,16 +1,16 @@
-import {portalAuth} from './firebase';
+import {studentAuth} from './firebase';
 import {signInWithEmailAndPassword,signOut} from 'firebase/auth';
 import {collection,getDocsFromServer,getFirestore} from 'firebase/firestore';
 import type {StudentWork} from './student-foundation';
 const validId=(v:string)=>/^[A-Za-z0-9_-]{1,128}$/.test(v);
 export async function studentSignIn(email:string,password:string){
  if(process.env.NEXT_PUBLIC_STUDENT_PORTAL_ENABLED!=='true')throw Error('Portal disabled');
- return signInWithEmailAndPassword(portalAuth(),email.trim(),password);
+ return signInWithEmailAndPassword(studentAuth(),email.trim(),password);
 }
-export async function studentSignOut(){await signOut(portalAuth())}
+export async function studentSignOut(){await signOut(studentAuth())}
 export async function readStudentWorks(termId:string):Promise<StudentWork[]>{
  if(process.env.NEXT_PUBLIC_STUDENT_PORTAL_ENABLED!=='true'||!validId(termId))throw Error('Portal unavailable');
- const auth=portalAuth(),user=auth.currentUser;
+ const auth=studentAuth(),user=auth.currentUser;
  if(!user||!validId(user.uid))throw Error('Sign in required');
  const snapshot=await getDocsFromServer(collection(getFirestore(auth.app),'studentPortalViews',user.uid,'terms',termId,'works'));
  if(auth.currentUser!==user)throw Error('Session changed');
@@ -25,7 +25,7 @@ export async function readStudentWorks(termId:string):Promise<StudentWork[]>{
 
 export async function readStudentTerms():Promise<{id:string;label:string}[]>{
  if(process.env.NEXT_PUBLIC_STUDENT_PORTAL_ENABLED!=='true')throw Error('Portal unavailable');
- const auth=portalAuth(),user=auth.currentUser;
+ const auth=studentAuth(),user=auth.currentUser;
  if(!user||!validId(user.uid))throw Error('Sign in required');
  const snapshot=await getDocsFromServer(collection(getFirestore(auth.app),'studentPortalViews',user.uid,'terms'));
  if(auth.currentUser!==user)throw Error('Session changed');
