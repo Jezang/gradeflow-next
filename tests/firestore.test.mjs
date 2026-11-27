@@ -80,3 +80,29 @@ test('student identities cannot read or forge bindings, enrollments or another s
   await assertFails(getDocs(collection(d,'students')));
  }
 });
+
+test('student projection is default-off, own-only, read-only and revocable',async()=>{
+ const path=['studentPortalViews','portal-u1','terms','T1','works','W1'];
+ const seed=async(fn)=>env.withSecurityRulesDisabled(c=>fn(c.firestore()));
+ await seed(async d=>{
+  await setDoc(doc(d,...path),{title:'Synthetic',score:0});
+  await setDoc(doc(d,'studentPortalBindings','portal-u1'),{studentId:'portal-s1',active:true});
+  await setDoc(doc(d,'studentPortalOwners','portal-s1'),{uid:'portal-u1'});
+ });
+ const own=db('portal-u1'),other=db('portal-u2');
+ await assertFails(getDoc(doc(own,...path)));
+ await seed(d=>setDoc(doc(d,'portalConfig','student'),{enabled:true}));
+ try{
+  await assertSucceeds(getDoc(doc(own,...path)));
+  await assertSucceeds(getDocs(collection(own,...path.slice(0,-1))));
+  await assertFails(getDoc(doc(other,...path)));
+  await assertFails(getDoc(doc(env.unauthenticatedContext().firestore(),...path)));
+  await assertFails(updateDoc(doc(own,...path),{score:10}));
+  await assertFails(setDoc(doc(other,'studentPortalBindings','portal-u2'),{studentId:'portal-s1',active:true}));
+  await assertFails(getDoc(doc(own,'studentPortalBindings','portal-u1')));
+  await seed(d=>updateDoc(doc(d,'studentPortalOwners','portal-s1'),{uid:'portal-u2'}));
+  await assertFails(getDoc(doc(own,...path)));
+  await seed(async d=>{await updateDoc(doc(d,'studentPortalOwners','portal-s1'),{uid:'portal-u1'});await updateDoc(doc(d,'studentPortalBindings','portal-u1'),{active:false})});
+  await assertFails(getDoc(doc(own,...path)));
+ }finally{await seed(d=>setDoc(doc(d,'portalConfig','student'),{enabled:false}))}
+});
