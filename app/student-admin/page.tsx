@@ -7,6 +7,7 @@ import { studentAdminAuth, studentAdminDemo } from './student-admin-auth';
 import '../student-preview/student-preview.css';
 import './student-admin.css';
 import MembershipEditor from './membership-editor';
+import EnrollmentEditor from './enrollment-editor';
 import BulkAccounts from './bulk-accounts';
 
 type Access =
@@ -236,6 +237,7 @@ function ManagementForms({ user, admin }: { user: User; admin: boolean }) {
           </fieldset>
         </form>
       </section>
+      {admin && <EnrollmentEditor user={user} />}
       {admin && <MembershipEditor user={user} />}
       <div aria-live="polite" aria-atomic="true">
         {pending && <p role="status">กำลังดำเนินการ…</p>}

@@ -1,4 +1,4 @@
-import {studentAdminServices} from '../../../../lib/student-admin-sdk';
+import {studentAdminServices, studentServerEnabled} from '../../../../lib/student-admin-sdk';
 import {handleStudentSignIn} from '../../../../lib/student-sign-in';
 import {studentSignInBackend} from '../../../../lib/student-sign-in-server';
 
@@ -26,7 +26,7 @@ async function readSignInBody(request:Request):Promise<unknown> {
 
 export async function POST(request:Request) {
   const send=(body:object,status:number)=>Response.json(body,{status,headers:{'Cache-Control':'no-store'}});
-  if (process.env.STUDENT_PORTAL_SERVER_ENABLED!=='true' || process.env.NEXT_PUBLIC_STUDENT_PORTAL_ENABLED!=='true') {
+  if (!studentServerEnabled() || process.env.NEXT_PUBLIC_STUDENT_PORTAL_ENABLED!=='true') {
     return send({error:'Unavailable'},503);
   }
 

@@ -1,4 +1,4 @@
-import {studentAdminServices} from '../../../../../lib/student-admin-sdk';
+import {studentAdminServices, studentServerEnabled} from '../../../../../lib/student-admin-sdk';
 import {parseStudentBatch, provisionStudentBatch} from '../../../../../lib/student-batch-provision';
 import {studentCredentialBackend} from '../../../../../lib/student-credential-server';
 
@@ -8,7 +8,7 @@ const json = (body: object, status = 200) =>
   Response.json(body, {status, headers: {'Cache-Control': 'no-store'}});
 
 export async function POST(request: Request) {
-  if (process.env.STUDENT_PORTAL_SERVER_ENABLED !== 'true') return json({error: 'Unavailable'}, 503);
+  if (!studentServerEnabled()) return json({error: 'Unavailable'}, 503);
   const token = request.headers.get('authorization')?.match(/^Bearer ([^\s]+)$/i)?.[1];
   if (!token) return json({error: 'Authentication required'}, 401);
   try {

@@ -1,3 +1,4 @@
+import {studentServerEnabled} from '../../../../lib/student-admin-sdk';
 import {handleStudentPublish} from '../../../../lib/student-publish-request';
 import {studentProjectionServer} from '../../../../lib/student-projection-server';
 
@@ -8,7 +9,7 @@ function json(body:object,status:number){
 }
 
 export async function POST(request:Request){
- if(process.env.STUDENT_PORTAL_SERVER_ENABLED!=='true')return json({error:'Unavailable'},503);
+ if(!studentServerEnabled())return json({error:'Unavailable'},503);
  const authorization=request.headers.get('authorization');
  if(!authorization?.match(/^Bearer [^\s]+$/i))return json({error:'Authentication required'},401);
  let body:unknown;

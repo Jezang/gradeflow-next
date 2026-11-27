@@ -1,6 +1,6 @@
 import {FieldValue} from 'firebase-admin/firestore';
 import {authorizeStudentAdmin} from '../../../../lib/student-admin-authorization';
-import {studentAdminServices} from '../../../../lib/student-admin-sdk';
+import {studentAdminServices, studentServerEnabled} from '../../../../lib/student-admin-sdk';
 import {parseStudentMembershipWindows, type StudentMembershipWindow} from '../../../../lib/student-membership-windows';
 
 export const runtime = 'nodejs';
@@ -11,7 +11,7 @@ const json = (body: object, status = 200) =>
   Response.json(body, {status, headers: {'Cache-Control': 'no-store'}});
 
 async function handle(request: Request, save: boolean) {
-  if (process.env.STUDENT_PORTAL_SERVER_ENABLED !== 'true') return json({error: 'Unavailable'}, 503);
+  if (!studentServerEnabled()) return json({error: 'Unavailable'}, 503);
   const token = /^Bearer (\S+)$/.exec(request.headers.get('authorization') ?? '')?.[1];
   if (!token) return json({error: 'Authentication required'}, 401);
 

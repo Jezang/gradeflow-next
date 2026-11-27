@@ -1,10 +1,10 @@
 import {handleStudentAccount} from '../../../../lib/student-account-request';
 import {studentAccountServer} from '../../../../lib/student-account-server';
-import {studentAdminServices} from '../../../../lib/student-admin-sdk';
+import {studentAdminServices, studentServerEnabled} from '../../../../lib/student-admin-sdk';
 import {studentCredentialBackend} from '../../../../lib/student-credential-server';
 export const runtime='nodejs';
 export async function POST(request:Request){
- if(process.env.STUDENT_PORTAL_SERVER_ENABLED!=='true')return Response.json({error:'Unavailable'},{status:503});
+ if(!studentServerEnabled())return Response.json({error:'Unavailable'},{status:503});
  const authorization=request.headers.get('authorization');
  if(!authorization)return Response.json({error:'Authentication required'},{status:401});
  let body:unknown;
