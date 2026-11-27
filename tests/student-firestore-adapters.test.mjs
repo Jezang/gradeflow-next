@@ -23,9 +23,11 @@ test('account adapter writes reciprocal mapping and audit together',async()=>{
 test('projection adapter removes stale work and preserves source',async()=>{
  const path='studentPortalViews/u1/terms/t1';
  const db=store({'studentPortalBindings/u1':{uid:'u1',studentId:'s1',active:true},'studentPortalOwners/s1':{uid:'u1',studentId:'s1'},[path+'/works/old']:{score:5},'source/old':{score:5}});
- const backend=projectionFirestoreBackend(db,identity,async()=>true,async()=>({label:'Demo term',rows:[]}));
+ const backend=projectionFirestoreBackend(db,identity,async()=>true,async()=>({label:'Demo term',rows:[],complete:true}));
  await publishStudentProjection(backend,'demo','s1','t1');
  assert.equal(db.data.has(path+'/works/old'),false);
  assert.equal(db.data.get(path).label,'Demo term');
  assert.equal(db.data.get('source/old').score,5);
 });
+
+test('incomplete source leaves existing projection untouched',async()=>{const path='studentPortalViews/u1/terms/t1/works/old';const db=store({'studentPortalBindings/u1':{uid:'u1',studentId:'s1',active:true},'studentPortalOwners/s1':{uid:'u1',studentId:'s1'},[path]:{score:5}});const backend=projectionFirestoreBackend(db,identity,async()=>true,async()=>({label:'Demo',rows:[],complete:false}));await assert.rejects(publishStudentProjection(backend,'demo','s1','t1'),/Incomplete source/);assert.equal(db.data.get(path).score,5)});
