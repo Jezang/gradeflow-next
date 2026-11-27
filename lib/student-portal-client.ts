@@ -22,3 +22,12 @@ export async function readStudentWorks(termId:string):Promise<StudentWork[]>{
   return {id:d.id,title:w.title,course:w.course,maxScore:w.maxScore,score:w.score,submitted:w.submitted,attendance:w.attendance,deadline:date(w.deadline),revisionDeadline:date(w.revisionDeadline)};
  });
 }
+
+export async function readStudentTerms():Promise<{id:string;label:string}[]>{
+ if(process.env.NEXT_PUBLIC_STUDENT_PORTAL_ENABLED!=='true')throw Error('Portal unavailable');
+ const auth=portalAuth(),user=auth.currentUser;
+ if(!user||!validId(user.uid))throw Error('Sign in required');
+ const snapshot=await getDocsFromServer(collection(getFirestore(auth.app),'studentPortalViews',user.uid,'terms'));
+ if(auth.currentUser!==user)throw Error('Session changed');
+ return snapshot.docs.map(d=>{const label=d.data().label;if(!validId(d.id)||typeof label!=='string'||!label.trim())throw Error('Invalid term');return {id:d.id,label}}).sort((a,b)=>b.id.localeCompare(a.id,'en',{numeric:true}));
+}
