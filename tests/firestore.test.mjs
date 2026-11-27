@@ -86,6 +86,7 @@ test('student projection is default-off, own-only, read-only and revocable',asyn
  const seed=async(fn)=>env.withSecurityRulesDisabled(c=>fn(c.firestore()));
  await seed(async d=>{
   await setDoc(doc(d,...path),{title:'Synthetic',score:0});
+  await setDoc(doc(d,...path.slice(0,4)),{label:'Synthetic term'});
   await setDoc(doc(d,'studentPortalBindings','portal-u1'),{studentId:'portal-s1',active:true});
   await setDoc(doc(d,'studentPortalOwners','portal-s1'),{uid:'portal-u1'});
  });
@@ -94,6 +95,9 @@ test('student projection is default-off, own-only, read-only and revocable',asyn
  await seed(d=>setDoc(doc(d,'portalConfig','student'),{enabled:true}));
  try{
   await assertSucceeds(getDoc(doc(own,...path)));
+  await assertSucceeds(getDocs(collection(own,...path.slice(0,3))));
+  await assertFails(getDocs(collection(other,...path.slice(0,3))));
+  await assertFails(updateDoc(doc(own,...path.slice(0,4)),{label:'changed'}));
   await assertSucceeds(getDocs(collection(own,...path.slice(0,-1))));
   await assertFails(getDoc(doc(other,...path)));
   await assertFails(getDoc(doc(env.unauthenticatedContext().firestore(),...path)));
