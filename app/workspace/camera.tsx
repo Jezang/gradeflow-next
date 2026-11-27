@@ -1,10 +1,12 @@
 'use client';
 import {useEffect,useRef,useState} from 'react';
 export default function Camera({onCode}:{onCode:(code:string)=>void}){
- const video=useRef<HTMLVideoElement>(null),callback=useRef(onCode),[status,setStatus]=useState('กำลังเปิดกล้อง…');
+ const video=useRef<HTMLVideoElement>(null),callback=useRef(onCode),finished=useRef(false),[status,setStatus]=useState('กำลังเปิดกล้อง…');
  useEffect(()=>{callback.current=onCode},[onCode]);
- useEffect(()=>{let closed=false,done=false;let controls:{stop:()=>void}|undefined;const el=video.current;
- async function start(){try{const {BrowserMultiFormatReader}=await import('@zxing/browser');if(closed||!el)return;const reader=new BrowserMultiFormatReader();controls=await reader.decodeFromVideoDevice(undefined,el,(result,_err,ctl)=>{if(closed||done||!result)return;done=true;ctl.stop();callback.current(result.getText())});if(closed||done)controls.stop();else setStatus('เล็งกล้องไปที่รหัสนักเรียน')}catch{if(!closed)setStatus('เปิดกล้องไม่ได้ ตรวจสอบสิทธิ์กล้อง หรือใช้ USB/พิมพ์รหัสแทน')}}void start();
+ function accept(code:string){if(finished.current||!code.trim())return;finished.current=true;callback.current(code)}
+ useEffect(()=>{let closed=false;let controls:{stop:()=>void}|undefined;const el=video.current;
+ async function start(){try{const {BrowserMultiFormatReader}=await import('@zxing/browser');if(closed||!el)return;const reader=new BrowserMultiFormatReader(undefined,{delayBetweenScanAttempts:100,delayBetweenScanSuccess:500});controls=await reader.decodeFromConstraints({audio:false,video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}}},el,(result,_err,ctl)=>{if(closed||finished.current||!result)return;ctl.stop();accept(result.getText())});if(closed||finished.current)controls.stop();else setStatus('เล็งรหัสให้ชัด ขยับกล้องเข้าออกช้า ๆ หรือเลือกรูปถ่ายรหัส')}catch{if(!closed)setStatus('เปิดกล้องไม่ได้ ลองเลือกรูปถ่ายรหัส หรือใช้ USB/พิมพ์รหัส')}}void start();
  return()=>{closed=true;controls?.stop();const stream=el?.srcObject;if(stream instanceof MediaStream)stream.getTracks().forEach(t=>t.stop())}},[]);
- return <div><video ref={video} muted playsInline autoPlay style={{width:'100%',maxWidth:420,borderRadius:14}}/><p role="status">{status}</p><small>อ่านรหัสบนอุปกรณ์ ไม่ส่งภาพกล้องไปยัง Firebase</small></div>
+ async function readPhoto(file:File){const url=URL.createObjectURL(file);try{setStatus('กำลังอ่านรหัสจากรูป…');const {BrowserMultiFormatReader}=await import('@zxing/browser');const reader=new BrowserMultiFormatReader();const result=await reader.decodeFromImageUrl(url);accept(result.getText())}catch{if(!finished.current)setStatus('ไม่พบรหัสในรูป ลองถ่ายใหม่ให้ชัดและมีแสงเพียงพอ')}finally{URL.revokeObjectURL(url)}}
+ return <div><video ref={video} muted playsInline autoPlay style={{width:'100%',maxWidth:420,borderRadius:14}}/><p role="status">{status}</p><label>สแกนจากรูปถ่าย<input type="file" accept="image/*" onChange={e=>{const file=e.target.files?.[0];e.target.value='';if(file)void readPhoto(file)}}/></label><small>อ่านรหัสบนอุปกรณ์ ไม่ส่งภาพกล้องไปยัง Firebase</small></div>
 }
