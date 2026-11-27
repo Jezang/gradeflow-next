@@ -216,6 +216,10 @@ service cloud.firestore {
      && get(/databases/$(database)/documents/studentPortalBindings/$(uid)).data.studentId is string
      && get(/databases/$(database)/documents/studentPortalOwners/$(get(/databases/$(database)/documents/studentPortalBindings/$(uid)).data.studentId)).data.uid == uid;
   }
+  match /studentPortalViews/{uid}/terms/{termId} {
+   allow get, list: if studentPortalOwn(uid);
+   allow write: if false;
+  }
   match /studentPortalViews/{uid}/terms/{termId}/works/{workId} {
    allow get, list: if studentPortalOwn(uid);
    allow create, update, delete: if false;
