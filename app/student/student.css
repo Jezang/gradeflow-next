@@ -58,3 +58,41 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+.student-preview.student-portal {
+  --hero-end: #f6d7e6;
+  --surface-border: #ecd0df;
+  max-width: 840px;
+  padding-inline: clamp(12px, 4vw, 32px);
+}
+.student-preview.student-portal[data-theme=mint] {
+  --hero-end: #ccebdc;
+  --surface-border: #c9e4d8;
+}
+.student-portal header {
+  background: linear-gradient(125deg, #fff, var(--hero-end));
+  padding: clamp(18px, 5vw, 36px);
+  border-color: var(--surface-border);
+}
+.student-portal section, .student-portal article {
+  border-color: var(--surface-border);
+  padding: clamp(12px, 3vw, 24px);
+}
+.student-portal .student-private-rank {
+  border-top: 1px solid var(--surface-border);
+  margin-top: 20px;
+  padding-top: 12px;
+}
+.student-portal .student-nav {
+  width: min(100%, 840px);
+}
+.student-portal button:not(:disabled) {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+@media (min-width: 620px) {
+  .student-preview.student-portal .student-metrics {
+    grid-template-columns: repeat(4,minmax(0,1fr));
+  }
+}

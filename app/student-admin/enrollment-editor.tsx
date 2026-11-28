@@ -22,7 +22,7 @@ const errors: Record<number, string> = {
   503: 'บริการจัดการการย้ายห้องและเลื่อนชั้นยังไม่พร้อมใช้งาน',
 };
 
-export default function EnrollmentEditor({user}: {user: User}) {
+export default function EnrollmentEditor({user,selectedStudent}: {user: User; selectedStudent:string}) {
   const [action, setAction] = useState<StudentEnrollmentChange['action']>('transfer');
   const [notice, setNotice] = useState<{kind: 'error' | 'success'; text: string}>();
   const [busy, setBusy] = useState(false);
@@ -107,7 +107,7 @@ export default function EnrollmentEditor({user}: {user: User}) {
           </label>
           {Object.entries(labels).map(([name, label]) => (name !== 'targetTermId' || action === 'promote') && (
             <label key={name}>{label}
-              <input name={name} required pattern={idPattern} maxLength={128} autoComplete="off" spellCheck={false} />
+              <input key={name==='studentId'?selectedStudent:name} defaultValue={name==='studentId'?selectedStudent:undefined} name={name} required pattern={idPattern} maxLength={128} autoComplete="off" spellCheck={false} />
             </label>
           ))}
           <label>วันที่และเวลาที่มีผล (เวลาไทย)

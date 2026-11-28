@@ -27,10 +27,10 @@ export default function Home() {
    <div className="home-sidebar-note"><span aria-hidden="true"><SakuraIcon name="sprout"/></span><strong>เติบโตไปด้วยกัน</strong><small>{RELEASE_LABEL} · {EDITION}</small></div>
   </aside>
   <main id="main-content">
-   <header className="home-header"><div><small>GRADE FLOW / {EDITION}</small><h1>ยินดีต้อนรับคุณครู</h1></div><span className="pill">{RELEASE_LABEL}</span></header>
+   <header className="home-header"><div><small>GRADE FLOW / {EDITION}</small><h1>ยินดีต้อนรับสู่ GradeFlow</h1></div><span className="pill">{RELEASE_LABEL}</span></header>
    <section className="hero home-hero home-scenic-hero">
     <div className="home-hero-copy"><span className="home-kicker">SAKURA CLASSROOM · BY T.Je</span><h2>ทุกการส่งงาน<br/>คือการเติบโต</h2><p>พื้นที่ตรวจงานแสนอบอุ่น จัดการรายวิชา ให้คะแนน และติดตามความก้าวหน้าของนักเรียนได้ในที่เดียว</p>
-     <div className="home-actions"><Link href="/login" className="primary">เข้าสู่ระบบจริง <span aria-hidden="true">→</span></Link><Link href="/demo" className="home-secondary">ทดลองใช้งาน</Link>{process.env.NEXT_PUBLIC_STUDENT_PORTAL_ENABLED==='true'&&<Link href="/student" className="home-secondary">เข้าสู่ระบบนักเรียน</Link>}</div>
+     <div className="home-actions"><Link href="/login" className="primary">เข้าสู่ระบบ <span aria-hidden="true">→</span></Link><Link href="/demo" className="home-secondary">ทดลองใช้งาน</Link></div>
     </div>
    </section>
    <section aria-labelledby="features-heading"><div className="home-section-title"><div><small>TEACHER TOOLKIT</small><h2 id="features-heading">เครื่องมือสำหรับคุณครู</h2></div><span className="muted">4 โมดูลหลัก</span></div>

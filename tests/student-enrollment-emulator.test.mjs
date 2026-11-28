@@ -4,6 +4,9 @@ import {deleteApp, initializeApp} from 'firebase-admin/app';
 import {getFirestore, Timestamp} from 'firebase-admin/firestore';
 import {changeStudentEnrollment} from '../lib/student-enrollment-server.ts';
 import {parseEnrollmentChange} from '../lib/student-enrollment-change.ts';
+import {StudentSyncForbidden,syncPublishedStudentWork} from '../lib/student-auto-sync.ts';
+import {readPrivateStudentRank,StudentRankForbidden} from '../lib/student-private-rank-server.ts';
+import {projectionWorkId} from '../lib/student-source-mapper.ts';
 import {readStudentProjectionSource} from '../lib/student-projection-source.ts';
 
 const project = 'demo-gradeflow-enrollment';
@@ -93,4 +96,76 @@ test('transfer and promotion update rosters atomically and preserve historical s
   assert.deepEqual((await read(audit)).input, transfer);
   const membership = 'studentPortalMemberships/' + studentId + '/terms/' + t1 + '/courses/' + t1 + '-' + roomA;
   assert.equal((await db.collection(membership + '/history').get()).size, 1);
+});
+
+test('an authorized sync cannot recreate a term during or after withdrawal', async () => {
+  const teacher = 'sync-teacher', sid = 'sync-student', uid = 'sync-user';
+  const course = 'sync-course', termId = 'sync-term', workId = 'quiz';
+  const base = db.doc('teachingAssignments/'+course);
+  const work = base.collection('work').doc(workId);
+  const term = db.doc('studentPortalViews/'+uid+'/terms/'+termId);
+  const result = term.collection('works').doc(projectionWorkId(course,workId));
+  const batch = db.batch();
+  for (const [path,data] of [
+    ['portalConfig/student',{enabled:true}],
+    ['profiles/'+teacher,{role:'teacher',active:true}],
+    ['profiles/sync-other',{role:'teacher',active:true}],
+    ['students/'+sid,{active:true}],
+    ['studentPortalOwners/'+sid,{studentId:sid,uid}],
+    ['studentPortalBindings/'+uid,{studentId:sid,uid,active:true}],
+    ['subjects/sync-subject',{name:'English'}],
+    [base.path,{active:true,subjectId:'sync-subject',termId,teacherUid:teacher}],
+    [base.collection('roster').doc(sid).path,{studentId:sid,active:true}],
+    [work.path,{active:true,title:'Quiz',maxScore:20}],
+    [work.collection('submissions').doc(sid).path,{studentId:sid,score:15,submitted:true}],
+  ]) batch.set(db.doc(path),data);
+  await batch.commit();
+  const sync = actor => syncPublishedStudentWork(db,actor,course,workId,sid);
+  await assert.rejects(sync('sync-other'),StudentSyncForbidden);
+  await sync(teacher);
+  assert.equal((await result.get()).exists,false);
+
+  await term.set({label:'Term'});
+  await sync(teacher);
+  assert.equal((await result.get()).get('score'),15);
+  assert.equal((await result.get()).get('subjectName'),'English');
+
+  const withdraw = db.runTransaction(async tx => {
+    const rows = await tx.get(term.collection('works'));
+    for (const row of rows.docs) tx.delete(row.ref);
+    tx.delete(term);
+  });
+  await Promise.all([withdraw,sync(teacher)]);
+  await sync(teacher);
+  assert.equal((await term.get()).exists,false);
+  assert.equal((await result.get()).exists,false);
+  assert.equal((await work.collection('submissions').doc(sid).get()).get('score'),15);
+});
+
+test('rank returns only a band for the requester and suppresses small published cohorts', async () => {
+  const termId = 'rank-term', courseId = 'rank-course', workId = projectionWorkId(courseId,'quiz');
+  const base = db.doc('teachingAssignments/'+courseId);
+  const term = i => db.doc('studentPortalViews/rank-uid-'+i+'/terms/'+termId);
+  const batch = db.batch();
+  batch.set(base,{termId,active:true});
+  batch.set(db.doc('subjects/rank-subject'),{name:'Mathematics'});
+  for(let i=0;i<10;i++){
+    const sid = 'rank-student-'+i, uid = 'rank-uid-'+i;
+    batch.set(base.collection('roster').doc(sid),{studentId:sid,active:true});
+    batch.set(db.doc('students/'+sid),{active:true});
+    batch.set(db.doc('studentPortalOwners/'+sid),{studentId:sid,uid});
+    batch.set(db.doc('studentPortalBindings/'+uid),{studentId:sid,uid,active:true,credentialVersion:'fresh'});
+    batch.set(term(i),{label:'Term'});
+    batch.set(term(i).collection('works').doc(workId),{
+      id:workId,course:'rank-subject',title:'Quiz',maxScore:20,score:i===0?20:i,
+      submitted:true,deadline:null,revisionDeadline:null,
+    });
+  }
+  await batch.commit();
+  const identity = {uid:'rank-uid-0',firebase:{sign_in_provider:'custom'},auth_time:100,gradeflowStudentSession:'fresh'};
+  await assert.rejects(readPrivateStudentRank(db,{...identity,gradeflowStudentSession:'old'},termId,courseId),StudentRankForbidden);
+  assert.deepEqual(await readPrivateStudentRank(db,identity,termId),{labels:{'rank-subject':'Mathematics'}});
+  assert.deepEqual(await readPrivateStudentRank(db,identity,termId,courseId),{band:'top-quarter'});
+  await term(9).delete();
+  assert.deepEqual(await readPrivateStudentRank(db,identity,termId,courseId),{band:null});
 });

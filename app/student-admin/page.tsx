@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { onIdTokenChanged, signInWithEmailAndPassword, signOut, type User } from 'firebase/auth';
+import {StudentLookup} from './student-lookup';
 import { studentAdminAuth, studentAdminDemo } from './student-admin-auth';
 import '../student-preview/student-preview.css';
 import './student-admin.css';
@@ -91,6 +92,7 @@ export default function StudentAdminPage() {
 }
 
 function ManagementForms({ user, admin }: { user: User; admin: boolean }) {
+  const [selectedStudent, setSelectedStudent] = useState('');
   const [accountAction, setAccountAction] = useState<AccountAction>('provision');
   const [publicationAction, setPublicationAction] = useState<PublicationAction>('publish');
   const [pending, setPending] = useState<'account' | 'publication' | null>(null);
@@ -192,6 +194,7 @@ function ManagementForms({ user, admin }: { user: User; admin: boolean }) {
 
   return (
     <>
+      {admin && <StudentLookup user={user} select={setSelectedStudent} />}
       {admin && (
         <section aria-labelledby="student-admin-accounts">
           <h2 id="student-admin-accounts">บัญชีนักเรียน</h2>
@@ -203,7 +206,7 @@ function ManagementForms({ user, admin }: { user: User; admin: boolean }) {
                   {Object.entries(accountActions).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                 </select>
               </label>
-              <IdInput name="studentId" label="รหัสระเบียนนักเรียน" />
+              <IdInput key={selectedStudent} name="studentId" label="รหัสระเบียนนักเรียน" defaultValue={selectedStudent} />
               {useExistingAccount && <IdInput name="uid" label="Firebase UID ของบัญชีนักเรียน" />}
               <button type="submit">{accountActions[accountAction]}</button>
             </fieldset>
@@ -231,14 +234,14 @@ function ManagementForms({ user, admin }: { user: User; admin: boolean }) {
                 {Object.entries(publicationActions).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
               </select>
             </label>
-            <IdInput name="studentId" label="รหัสระเบียนนักเรียน" />
+            <IdInput key={selectedStudent} name="studentId" label="รหัสระเบียนนักเรียน" defaultValue={selectedStudent} />
             <IdInput name="termId" label="รหัสภาคเรียน" />
             <button type="submit">{publicationActions[publicationAction]}</button>
           </fieldset>
         </form>
       </section>
-      {admin && <EnrollmentEditor user={user} />}
-      {admin && <MembershipEditor user={user} />}
+      {admin && <EnrollmentEditor key={selectedStudent} user={user} selectedStudent={selectedStudent} />}
+      {admin && <MembershipEditor key={selectedStudent} user={user} selectedStudent={selectedStudent} />}
       <div aria-live="polite" aria-atomic="true">
         {pending && <p role="status">กำลังดำเนินการ…</p>}
         {notice && <p role={notice.type === 'error' ? 'alert' : 'status'}>{notice.text}</p>}
@@ -281,11 +284,11 @@ function DemoSignIn() {
   );
 }
 
-function IdInput({ name, label }: { name: string; label: string }) {
+function IdInput({ name, label, defaultValue }: { name: string; label: string; defaultValue?:string }) {
   return (
     <label>
       {label}
-      <input name={name} required pattern={idPattern} maxLength={128} autoComplete="off" spellCheck={false} />
+      <input name={name} defaultValue={defaultValue} required pattern={idPattern} maxLength={128} autoComplete="off" spellCheck={false} />
     </label>
   );
 }

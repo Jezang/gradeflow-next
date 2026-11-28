@@ -2,6 +2,8 @@
 
 import {useEffect, useState} from 'react';
 import {studentProgress, studentWorkState, type StudentWork} from '../../lib/student-foundation';
+import {projectedCourseId} from '../../lib/student-private-rank';
+import {readStudentRank} from '../../lib/student-portal-client';
 import {sakuraMilestones} from '../../lib/student-sakura-progress';
 
 type Term = {id: string; label: string};
@@ -98,7 +100,7 @@ export function StudentDashboard({readTerms, readWorks, signOut, theme, setTheme
         <label>
           ธีม
           <select value={theme} onChange={(event) => setTheme(event.target.value === 'mint' ? 'mint' : 'sakura')}>
-            <option value="sakura">Sakura</option>
+            <option value="sakura">Sakura Pink</option>
             <option value="mint">Mint</option>
           </select>
         </label>
@@ -135,7 +137,7 @@ function TermResults({termId, readWorks}: {termId: string; readWorks: (termId: s
 
   return (
     <>
-      {works.state === 'ready' && <TermSummary works={works.items} />}
+      {works.state === 'ready' && <TermSummary works={works.items} termId={termId} />}
       <section id="student-works" aria-labelledby="student-works-heading">
         <h2 id="student-works-heading">งานของฉัน</h2>
         {works.state === 'loading' && <p role="status">กำลังโหลดงาน…</p>}
@@ -158,7 +160,7 @@ function TermResults({termId, readWorks}: {termId: string; readWorks: (termId: s
   );
 }
 
-function TermSummary({works}: {works: StudentWork[]}) {
+function TermSummary({works, termId}: {works: StudentWork[]; termId:string}) {
   const progress = studentProgress(works);
   const sakura = sakuraMilestones(works);
   const stage = stageDetails[sakura.stage];
@@ -196,16 +198,63 @@ function TermSummary({works}: {works: StudentWork[]}) {
             {sakura.badges.map((badge) => <li key={badge}>🏅 {badgeLabels[badge]}</li>)}
           </ul>
         )}
+        <PrivateRanking termId={termId} works={works} />
       </section>
     </>
   );
+}
+
+const rankMessages = {
+  'top-quarter':'อยู่ในกลุ่ม 25% แรก',
+  'top-half':'อยู่ในกลุ่มครึ่งบน',
+  'lower-half':'อยู่ในกลุ่มครึ่งล่าง',
+};
+
+function PrivateRanking({termId,works}: {termId:string; works:StudentWork[]}) {
+  const [course,setCourse] = useState('');
+  const [status,setStatus] = useState('');
+  const [busy,setBusy] = useState(false);
+  const choices = new Map<string,string>();
+  for (const work of works) {
+    const id = projectedCourseId(work.id);
+    if (id && (!choices.has(id) || work.subjectName)) choices.set(id,work.subjectName ?? work.course);
+  }
+  if (!choices.size) return null;
+
+  async function load() {
+    if (!course || busy) return;
+    setBusy(true);
+    setStatus('กำลังคำนวณ…');
+    try {
+      const band = await readStudentRank(termId,course);
+      setStatus(band ? rankMessages[band] : 'ยังมีผลคะแนนที่เปรียบเทียบได้ไม่เพียงพอ');
+    } catch {
+      setStatus('โหลดอันดับไม่ได้ กรุณาลองอีกครั้ง');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return <div className="student-private-rank">
+    <h3>อันดับส่วนตัวในรายวิชา</h3>
+    <label>รายวิชา
+      <select value={course} disabled={busy} onChange={event => {setCourse(event.target.value);setStatus('')}}>
+        <option value="">เลือกรายวิชา</option>
+        {[...choices].map(([id,name]) => <option key={id} value={id}>{name}</option>)}
+      </select>
+    </label>
+    <button type="button" disabled={!course || busy} onClick={() => void load()}>ดูอันดับของฉัน</button>
+    <p role="status">{status}</p>
+  </div>;
 }
 
 function WorkList({works}: {works: StudentWork[]}) {
   const [course, setCourse] = useState('');
   const [status, setStatus] = useState('');
   const now = Date.now();
-  const courses = [...new Set(works.map((work) => work.course))].sort((a, b) => a.localeCompare(b, 'th'));
+  const courses = new Map(works.map(work => [work.course,work.course]));
+  for (const work of works) if (work.subjectName) courses.set(work.course,work.subjectName);
+  const subjects = [...courses].sort((a,b) => a[1].localeCompare(b[1],'th'));
   const visible = works.map((work): {work: StudentWork; state: WorkState} => ({work, state: studentWorkState(work, now)}))
     .filter(({work, state}) => (!course || work.course === course) && (!status || state === status));
 
@@ -218,7 +267,7 @@ function WorkList({works}: {works: StudentWork[]}) {
           รายวิชา
           <select value={course} onChange={(event) => setCourse(event.target.value)}>
             <option value="">ทุกวิชา</option>
-            {courses.map((item) => <option key={item}>{item}</option>)}
+            {subjects.map(([id,name]) => <option key={id} value={id}>{name}</option>)}
           </select>
         </label>
         <label>
@@ -233,7 +282,7 @@ function WorkList({works}: {works: StudentWork[]}) {
       {visible.length === 0 && <p>ไม่มีงานที่ตรงกับตัวกรอง</p>}
       {visible.map(({work, state}) => (
         <article key={work.id}>
-          <small>{work.course}</small>
+          <small>{work.subjectName ?? courses.get(work.course)}</small>
           <h3>{work.title}</h3>
           <span className="student-status" data-state={state}>{workLabels[state]}</span>
           <p>คะแนน {work.score ?? '—'} / {work.maxScore}</p>
@@ -262,7 +311,7 @@ function DeadlineAgenda({works}: {works: StudentWork[]}) {
           <time dateTime={new Date(event.date).toISOString()}>{dateFormat.format(event.date)}</time>
           {' · '}{event.label}
           <strong>{event.work.title}</strong>
-          <small>{event.work.course}</small>
+          <small>{event.work.subjectName ?? event.work.course}</small>
         </li>
       ))}
     </ul>

@@ -1,3 +1,4 @@
+import {validStudentProjectionLabel} from './student-projection-document.ts';
 import {mapTeacherWork} from './student-source-mapper.ts';
 import type {MembershipWindow} from './student-historical-work';
 import type {Attendance} from './work-tracking';
@@ -19,6 +20,7 @@ export async function readTeacherSource(reader:TeacherSourceReader,studentId:str
  const courses=await reader.listTermCourses(termId);
  if(courses.complete!==true||courses.docs.length>500)throw Error('Incomplete courses');
  const rows:SourceWork[]=[];
+ const labels=new Map<string,string>();
  for(const course of courses.docs){
  if(!valid(course.id)||course.data.termId!==termId)throw Error('Invalid course scope');
  const base='teachingAssignments/'+course.id;
@@ -26,6 +28,11 @@ export async function readTeacherSource(reader:TeacherSourceReader,studentId:str
  const membershipWindows=await reader.membershipWindows(studentId,termId,course.id);
  if(membershipWindows===undefined&&roster?.active!==true)continue;
  if(membershipWindows!==undefined&&!membershipWindows.some(w=>w.studentId===studentId&&w.termId===termId&&w.courseId===course.id))continue;
+ const subjectId=course.data.subjectId;
+ if(typeof subjectId==='string'&&valid(subjectId)&&!labels.has(subjectId)){
+  const subject=await reader.get('subjects/'+subjectId);
+  labels.set(subjectId,validStudentProjectionLabel(subject?.name)?subject.name:subjectId);
+ }
  const works=await reader.listWorks(course.id);
  if(works.complete!==true||works.docs.length>500)throw Error('Incomplete work list');
  for(const work of works.docs){
@@ -34,7 +41,10 @@ export async function readTeacherSource(reader:TeacherSourceReader,studentId:str
  const submission=await reader.get(base+'/work/'+work.id+'/submissions/'+studentId);
  const attendance=await reader.attendance(course.id,work.id,studentId);
  const row=mapTeacherWork({courseId:course.id,workId:work.id,studentId,termId,course:course.data,roster,work:work.data,submission,attendance,membershipWindows});
- if(row)rows.push(row);
+ if(row){
+  const subjectName=labels.get(row.course);
+  rows.push(subjectName&&subjectName!==row.course?{...row,subjectName}:row);
+ }
  if(rows.length>449)throw Error('Projection capacity exceeded');
  }
  }
