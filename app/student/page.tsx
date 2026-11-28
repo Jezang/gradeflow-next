@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import {useEffect, useState, type FormEvent} from 'react';
 import {onAuthStateChanged, type User} from 'firebase/auth';
 import {studentAuth} from '../../lib/firebase';
@@ -20,6 +21,15 @@ export default function StudentPage() {
   const [theme, setTheme] = useState<'sakura' | 'mint'>('sakura');
 
   useEffect(() => {
+    try {if (window.localStorage.getItem('gradeflow-student-theme') === 'mint') setTheme('mint')} catch {}
+  }, []);
+
+  function changeTheme(value: 'sakura' | 'mint') {
+    setTheme(value);
+    try {window.localStorage.setItem('gradeflow-student-theme',value)} catch {}
+  }
+
+  useEffect(() => {
     if (!enabled) return;
     try {
       return onAuthStateChanged(studentAuth(), (user) => {
@@ -34,7 +44,7 @@ export default function StudentPage() {
     <main className="student-preview student-portal" data-theme={theme}>
       <header id="student-overview">
         <span className="student-avatar" aria-hidden="true">🌸</span>
-        <h1>ระบบนักเรียน</h1>
+        <h1>GradeFlow สำหรับนักเรียน</h1>
       </header>
       {!enabled ? (
         <section>
@@ -58,7 +68,7 @@ export default function StudentPage() {
           readWorks={readStudentWorks}
           signOut={studentSignOut}
           theme={theme}
-          setTheme={setTheme}
+          setTheme={changeTheme}
         />
       ) : (
         <StudentLogin />
@@ -90,7 +100,8 @@ function StudentLogin() {
 
   return (
     <section>
-      <h2>เข้าสู่ระบบ</h2>
+      <Link href="/login">← เลือกประเภทบัญชี</Link>
+      <h2>เข้าสู่ระบบนักเรียน</h2>
       <form className="student-portal-form" onSubmit={login}>
         <label>
           รหัสประจำตัวนักเรียน

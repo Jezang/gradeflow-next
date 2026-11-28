@@ -1,4 +1,5 @@
 'use client';
+import {syncStudentWork} from '../../lib/student-auto-sync-client';
 import {useEffect,useRef,useState,type FormEvent} from 'react';
 import {collection,doc,onSnapshot,query,limit,runTransaction,serverTimestamp,Timestamp} from 'firebase/firestore';
 import {firebaseServices} from '../../lib/firebase';
@@ -29,12 +30,14 @@ export default function WorkTracking({uid,course,work,deadline,revision,people,a
   const {a,b}=validateDeadlines(due,editDue);const before={...baseline.current};const {db}=firebaseServices();const ref=doc(db,'teachingAssignments',course,'work',work);
   await runTransaction(db,async tx=>{const s=await tx.get(ref);if(!s.exists()||s.data().active!==true||timestampMillis(s.data().deadline)!==before.deadline||timestampMillis(s.data().revisionDeadline)!==before.revision)throw Error('ข้อมูลกำหนดส่งเปลี่ยนแล้ว กรุณาตรวจสอบใหม่');
    tx.update(ref,{deadline:a===null?null:Timestamp.fromMillis(a),revisionDeadline:b===null?null:Timestamp.fromMillis(b),deadlineUpdatedBy:uid,deadlineUpdatedAt:serverTimestamp()})});
-  setMessage('บันทึกกำหนดส่งแล้ว');
+  const synced=await syncStudentWork(uid,course,work);
+  setMessage('บันทึกกำหนดส่งแล้ว'+(synced?'':' · ซิงก์ระบบนักเรียนไม่สำเร็จ'));
  })}
  async function mark(status:Attendance){if(!ready||!people.some(p=>p.id===student&&!p.submitted))return;await execute(async()=>{
   const {db}=firebaseServices();const base=doc(db,'teachingAssignments',course,'work',work);const sub=doc(base,'submissions',student),ref=doc(base,'attendance',student);
   await runTransaction(db,async tx=>{const s=await tx.get(sub);if(s.data()?.submitted===true)throw Error('นักเรียนส่งงานแล้ว');await tx.get(ref);tx.set(ref,{studentId:student,status,updatedBy:uid,updatedAt:serverTimestamp()})});
-  setMessage('บันทึกสถานะ '+attendanceLabels[status]+' แล้ว โดยไม่แก้คะแนน');
+  const synced=await syncStudentWork(uid,course,work,student);
+  setMessage('บันทึกสถานะ '+attendanceLabels[status]+' แล้ว'+(synced?'':' · ซิงก์ระบบนักเรียนไม่สำเร็จ'));
  })}
  return <details className="panel checking-tools"><summary>กำหนดส่ง · แก้งาน · บันทึกลา/ขาด</summary>
  <p>เวลาประเทศไทย · {deadlineLabels[deadlineState(false,deadline,revision,Date.now())]} · ครูยังรับงานและแก้คะแนนหลังวันกำหนดได้ตามปกติ</p>

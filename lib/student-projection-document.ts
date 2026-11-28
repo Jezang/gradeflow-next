@@ -14,9 +14,10 @@ function projectionDate(value: unknown): number | null {
 }
 
 export function parseStudentProjectionWork(id: string, data: Record<string, unknown>): StudentWork {
-  const {title, course, maxScore, score, submitted, attendance} = data;
+  const {title, course, subjectName, maxScore, score, submitted, attendance} = data;
   if (!validStudentProjectionId(id) || (data.id !== undefined && data.id !== id)
     || !validStudentProjectionLabel(title) || !validStudentProjectionLabel(course)
+    || (subjectName !== undefined && !validStudentProjectionLabel(subjectName))
     || typeof maxScore !== 'number' || !Number.isFinite(maxScore) || maxScore <= 0 || maxScore > 1000
     || typeof submitted !== 'boolean'
     || (score !== null && (typeof score !== 'number' || !Number.isFinite(score) || score < 0 || score > maxScore || !submitted))
@@ -25,6 +26,7 @@ export function parseStudentProjectionWork(id: string, data: Record<string, unkn
   }
   return {
     id, title, course, maxScore, score, submitted,
+    ...(subjectName===undefined?{}:{subjectName}),
     ...(attendance === undefined ? {} : {attendance}),
     deadline: projectionDate(data.deadline),
     revisionDeadline: projectionDate(data.revisionDeadline),

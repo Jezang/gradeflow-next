@@ -26,7 +26,7 @@ export function planEnrollment(rows:readonly Enrollment[], next:Enrollment):Enro
  if(result.some(r=>r.no>500))throw Error('Room capacity exceeded');
  return [...result,{...next}];
 }
-export type StudentWork = Readonly<{id:string;course:string;title:string;maxScore:number;score:number|null;submitted:boolean;attendance?:'leave'|'absent';deadline:number|null;revisionDeadline:number|null}>;
+export type StudentWork = Readonly<{id:string;course:string;subjectName?:string;title:string;maxScore:number;score:number|null;submitted:boolean;attendance?:'leave'|'absent';deadline:number|null;revisionDeadline:number|null}>;
 export function studentProgress(works:readonly StudentWork[]){
  const graded=works.filter(w=>w.submitted&&w.score!==null);
  return {total:works.length,submitted:works.filter(w=>w.submitted).length,outstanding:works.filter(w=>!w.submitted).length,points:graded.reduce((s,w)=>s+(w.score??0),0),possible:graded.reduce((s,w)=>s+w.maxScore,0)};

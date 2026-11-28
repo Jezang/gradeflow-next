@@ -20,7 +20,7 @@ function toBangkokInput(time: number) {
   return new Date(time + bangkokOffset).toISOString().slice(0, -1);
 }
 
-export default function MembershipEditor({ user }: { user: User }) {
+export default function MembershipEditor({ user,selectedStudent }: { user: User; selectedStudent:string }) {
   const [membership, setMembership] = useState<Membership | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -128,7 +128,7 @@ export default function MembershipEditor({ user }: { user: User }) {
         <fieldset disabled={busy || membership !== null}>
           {Object.entries(ids).map(([name, label]) => (
             <label key={name}>{label}
-              <input name={name} required pattern={'[A-Za-z0-9_\\-]{1,128}'} maxLength={128} autoComplete="off" spellCheck={false} />
+              <input key={name==='studentId'?selectedStudent:name} defaultValue={name==='studentId'?selectedStudent:undefined} name={name} required pattern={'[A-Za-z0-9_\\-]{1,128}'} maxLength={128} autoComplete="off" spellCheck={false} />
             </label>
           ))}
           <button type="submit">โหลดช่วงเรียน</button>
